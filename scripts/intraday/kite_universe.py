@@ -42,16 +42,21 @@ def fetch_nifty500_symbols() -> pd.DataFrame:
 
 
 def fetch_tradable_nse_equities(kite) -> pd.DataFrame:
-    """Plain (no series-suffix) tradingsymbols only — real mainboard EQ-series
-    stocks tradable intraday. Suffixed variants (-BE/-BZ trade-to-trade,
-    -SM/-ST SME board, -SG/-GS/-GB/-N0..N9 bonds/SDLs/SGBs/NCDs) are excluded;
-    none of them support intraday MIS orders either way.
+    """All current NSE EQ-segment instruments, lot size 1 (real mainboard
+    equity always trades in lot size 1; SDLs/SGBs/NCDs/SME board stocks
+    don't). Deliberately does NOT filter on whether the tradingsymbol
+    contains a hyphen — some genuine mainboard tickers do (BAJAJ-AUTO,
+    NAM-INDIA) — and doesn't need to: exact-symbol matching against the
+    official Nifty 500 list in main() already does the tradability
+    filtering. A stock currently flagged trade-to-trade (e.g. "-BE") shows
+    up here under that suffixed tradingsymbol, which simply won't match the
+    plain symbol from the official list, and gets dropped by the merge.
     """
     instruments = pd.DataFrame(kite.instruments("NSE"))
     equities = instruments[
         (instruments["instrument_type"] == "EQ") &
         (instruments["segment"] == "NSE") &
-        (~instruments["tradingsymbol"].str.contains("-"))
+        (instruments["lot_size"] == 1)
     ].copy()
     return equities[["instrument_token", "tradingsymbol"]]
 

@@ -242,8 +242,88 @@ def momentum_volume_breakout(df: pd.DataFrame, or_bars: int = 4, vol_mult: float
     return pd.DataFrame(trades)
 
 
+def failed_breakout_short(df: pd.DataFrame, or_bars: int = 2, confirm_bars: int = 2,
+                           stop_r: float = 1.0, target_r: float = 2.0) -> pd.DataFrame:
+    """Short-only. Fades a false upside breakout: price pokes above the
+    opening-range high (looks like the ORB long signal) but fails to hold —
+    closes back below OR-high within `confirm_bars` bars of the poke. That
+    failure signals trapped longs / a stop-hunt rather than real follow-through,
+    and is a classic short setup distinct from just shorting the down side of
+    a symmetric breakout strategy. Stop above the poke's high, target back
+    toward the opening range (in R-multiples of its width). No long side by
+    construction — there is no "failed breakdown" signal here.
+    """
+    trades = []
+    for day, day_df in _day_groups(df):
+        if len(day_df) <= or_bars + confirm_bars + 1:
+            continue
+        or_high = day_df["high"].iloc[:or_bars].max()
+        or_low = day_df["low"].iloc[:or_bars].min()
+        or_range = or_high - or_low
+        if or_range <= 0:
+            continue
+
+        rest = day_df.iloc[or_bars:]
+        bars = list(rest.itertuples())
+
+        watching_poke_high = None
+        poke_idx = None
+        in_position = False
+        entry_price = entry_time = stop = target = None
+
+        for i, bar in enumerate(bars):
+            if in_position:
+                hit_stop = bar.high >= stop
+                hit_target = bar.low <= target
+                if hit_stop or hit_target:
+                    exit_price = stop if hit_stop else target
+                    trades.append({
+                        "date": day, "direction": -1,
+                        "entry_time": entry_time, "entry_price": entry_price,
+                        "exit_time": bar.Index, "exit_price": exit_price,
+                        "exit_reason": "stop" if hit_stop else "target",
+                    })
+                    in_position = False
+                    watching_poke_high = None
+                continue
+
+            if watching_poke_high is None:
+                if bar.high > or_high:
+                    watching_poke_high = bar.high
+                    poke_idx = i
+                continue
+
+            # within confirm_bars of the poke, did price fail (close back below OR-high)?
+            if bar.close < or_high:
+                if i + 1 >= len(bars):
+                    break
+                next_bar = bars[i + 1]
+                entry_price = next_bar.open
+                entry_time = next_bar.Index
+                stop = watching_poke_high + stop_r * or_range
+                target = entry_price - target_r * or_range
+                in_position = True
+                watching_poke_high = None
+                continue
+
+            if i - poke_idx >= confirm_bars:
+                watching_poke_high = None  # gave it a fair chance to fail; breakout held, move on
+
+        if in_position:
+            last_bar = bars[-1]
+            trades.append({
+                "date": day, "direction": -1,
+                "entry_time": entry_time, "entry_price": entry_price,
+                "exit_time": last_bar.Index, "exit_price": last_bar.close,
+                "exit_reason": "eod",
+            })
+
+    return pd.DataFrame(trades)
+
+
 STRATEGIES = {
     "opening_range_breakout": opening_range_breakout,
     "vwap_mean_reversion": vwap_mean_reversion,
     "momentum_volume_breakout": momentum_volume_breakout,
+    "failed_breakout_short": failed_breakout_short,
 }

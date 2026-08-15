@@ -43,7 +43,10 @@ def load_bars() -> dict:
 
 
 def run_one_strategy(strat_name, strat_fn, bars: dict, rank: dict, universe_size: int,
-                      cost_multiplier: float = 1.0):
+                      cost_multiplier: float = 1.0, direction: int = None):
+    """direction: None runs both legs, +1 long-only, -1 short-only (filters
+    each symbol's trades before aggregating, so costs/aggregation logic is
+    identical to the combined run — only which trades count differs)."""
     all_trades = {}
     for symbol, df in bars.items():
         trades = strat_fn(df)
@@ -55,6 +58,10 @@ def run_one_strategy(strat_name, strat_fn, bars: dict, rank: dict, universe_size
             gross = trades["gross_return"]
             base_cost = gross - trades["net_return"]
             trades["net_return"] = gross - base_cost * cost_multiplier
+        if direction is not None:
+            trades = trades[trades["direction"] == direction]
+            if trades.empty:
+                continue
         all_trades[symbol] = trades
 
     daily = portfolio_daily_returns(all_trades)
@@ -77,31 +84,47 @@ def main():
     universe_size = max(len(bars), len(rank) or 1)
     strategies_to_run = {args.strategy: STRATEGIES[args.strategy]} if args.strategy else STRATEGIES
 
-    rows = []
-    for strat_name, strat_fn in strategies_to_run.items():
-        daily, n_trades, n_long, n_short = run_one_strategy(strat_name, strat_fn, bars, rank, universe_size)
+    def build_row(label, strat_name, strat_fn, direction):
+        daily, n_trades, n_long, n_short = run_one_strategy(
+            strat_name, strat_fn, bars, rank, universe_size, direction=direction)
         if daily.empty:
-            print(f"{strat_name}: no trades generated, skipping")
-            continue
+            print(f"{label}: no trades generated, skipping")
+            return None
 
         full = performance_metrics(daily)
         train, test = walk_forward_split(daily)
         train_m = performance_metrics(train)
         test_m = performance_metrics(test)
 
-        # cost sensitivity: how fragile is this to costs being underestimated?
-        daily_2x, _, _, _ = run_one_strategy(strat_name, strat_fn, bars, rank, universe_size, cost_multiplier=2.0)
+        daily_2x, *_ = run_one_strategy(
+            strat_name, strat_fn, bars, rank, universe_size, cost_multiplier=2.0, direction=direction)
         cagr_2x = performance_metrics(daily_2x).get("CAGR")
 
-        rows.append({
-            "strategy": strat_name,
+        return {
+            "strategy": label,
             "trades": n_trades, "long": n_long, "short": n_short,
             "full_CAGR": full["CAGR"], "full_Sharpe": full["Sharpe"], "full_MaxDD": full["MaxDrawdown"],
             "train_CAGR": train_m["CAGR"], "train_Sharpe": train_m["Sharpe"],
             "test_CAGR (out-of-sample, what matters most)": test_m["CAGR"],
             "test_Sharpe": test_m["Sharpe"], "test_MaxDD": test_m["MaxDrawdown"],
             "CAGR_at_2x_costs": cagr_2x,
-        })
+        }
+
+    rows = []
+    for strat_name, strat_fn in strategies_to_run.items():
+        row = build_row(strat_name, strat_name, strat_fn, direction=None)
+        if row:
+            rows.append(row)
+
+        # also break out long-only / short-only legs for strategies that
+        # trade both directions, so we can see whether one side alone beats
+        # the combined signal (e.g. "is shorting this actually the edge?")
+        is_bidirectional = row is not None and row["long"] > 0 and row["short"] > 0
+        if is_bidirectional:
+            for label, direction in [(f"{strat_name} (long only)", 1), (f"{strat_name} (short only)", -1)]:
+                sub_row = build_row(label, strat_name, strat_fn, direction=direction)
+                if sub_row:
+                    rows.append(sub_row)
 
     if not rows:
         raise SystemExit("No strategy produced any trades on this data.")
