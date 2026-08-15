@@ -1,0 +1,11 @@
+strategy,trades,long,short,full_CAGR,full_Sharpe,full_MaxDD,train_CAGR,train_Sharpe,"test_CAGR (out-of-sample, what matters most)",test_Sharpe,test_MaxDD,CAGR_at_2x_costs
+opening_range_breakout,744,378,366,-5.23%,-0.50,-8.38%,3.07%,0.34,-17.57%,-2.20,-5.17%,-24.58%
+opening_range_breakout (long only),757,757,0,-14.66%,-1.26,-11.40%,-1.46%,-0.05,-32.97%,-3.50,-7.89%,-33.81%
+opening_range_breakout (short only),753,0,753,-15.51%,-1.48,-13.11%,-12.07%,-1.02,-21.38%,-2.42,-6.77%,-34.68%
+vwap_mean_reversion,810,476,334,-23.91%,-6.27,-13.93%,-23.48%,-5.75,-25.44%,-7.28,-6.85%,-39.70%
+vwap_mean_reversion (long only),810,810,0,-23.32%,-5.24,-14.28%,-18.69%,-3.76,-31.07%,-8.41,-7.52%,-40.66%
+vwap_mean_reversion (short only),810,0,810,-22.33%,-5.50,-13.22%,-27.79%,-6.65,-13.39%,-3.48,-3.95%,-40.72%
+momentum_volume_breakout,708,494,214,-6.17%,-0.44,-8.71%,-1.79%,-0.06,-13.13%,-1.17,-5.16%,-30.68%
+momentum_volume_breakout (long only),697,697,0,13.91%,0.94,-5.17%,19.65%,1.20,5.67%,0.46,-2.87%,-16.17%
+momentum_volume_breakout (short only),696,0,696,-29.37%,-3.02,-17.67%,-39.75%,-4.50,-9.69%,-0.80,-5.11%,-48.52%
+failed_breakout_short,690,0,690,-19.54%,-1.52,-14.15%,-26.65%,-2.03,-7.21%,-0.55,-3.96%,-37.75%
