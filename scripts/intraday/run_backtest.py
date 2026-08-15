@@ -45,7 +45,8 @@ def load_bars() -> dict:
 
 def run_one_strategy(strat_name, strat_fn, bars: dict, rank: dict, universe_size: int,
                       cost_multiplier: float = 1.0, direction: int = None,
-                      max_trades_per_day: int = None, max_trades_per_symbol_per_day: int = None):
+                      max_trades_per_day: int = None, max_trades_per_symbol_per_day: int = None,
+                      cap_priority: str = "liquidity"):
     """direction: None runs both legs, +1 long-only, -1 short-only (filters
     each symbol's trades before aggregating, so costs/aggregation logic is
     identical to the combined run — only which trades count differs).
@@ -71,7 +72,8 @@ def run_one_strategy(strat_name, strat_fn, bars: dict, rank: dict, universe_size
                 continue
         all_trades[symbol] = trades
 
-    all_trades = apply_daily_caps(all_trades, max_trades_per_day, max_trades_per_symbol_per_day)
+    all_trades = apply_daily_caps(all_trades, max_trades_per_day, max_trades_per_symbol_per_day,
+                                   priority=cap_priority, rank=rank)
     daily = portfolio_daily_returns(all_trades)
     total_trades = sum(len(t) for t in all_trades.values())
     long_trades = sum((t["direction"] == 1).sum() for t in all_trades.values())
@@ -91,6 +93,9 @@ def main():
                          help="max %% of capital risked on a single trade if its stop is hit (default: 0.5%%)")
     parser.add_argument("--daily-risk-budget-pct", type=float, default=3.0,
                          help="max %% of capital at risk in a day before stopping, worst-case (default: 3%%)")
+    parser.add_argument("--cap-priority", choices=["liquidity", "chronological"], default="liquidity",
+                         help="when more signals fire than the cap allows, which to keep (default: liquidity — "
+                              "see trade_caps.py; never realized-return-based, that would be look-ahead bias)")
     args = parser.parse_args()
 
     max_trades_per_day = args.max_trades_per_day
@@ -114,7 +119,7 @@ def main():
         daily, n_trades, n_long, n_short = run_one_strategy(
             strat_name, strat_fn, bars, rank, universe_size, direction=direction,
             max_trades_per_day=max_trades_per_day,
-            max_trades_per_symbol_per_day=args.max_trades_per_symbol_per_day)
+            max_trades_per_symbol_per_day=args.max_trades_per_symbol_per_day, cap_priority=args.cap_priority)
         if daily.empty:
             print(f"{label}: no trades generated, skipping")
             return None
@@ -127,7 +132,7 @@ def main():
         daily_2x, *_ = run_one_strategy(
             strat_name, strat_fn, bars, rank, universe_size, cost_multiplier=2.0, direction=direction,
             max_trades_per_day=max_trades_per_day,
-            max_trades_per_symbol_per_day=args.max_trades_per_symbol_per_day)
+            max_trades_per_symbol_per_day=args.max_trades_per_symbol_per_day, cap_priority=args.cap_priority)
         cagr_2x = performance_metrics(daily_2x).get("CAGR")
 
         return {

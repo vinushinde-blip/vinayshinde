@@ -10,15 +10,27 @@ that many positions in a day; the backtest numbers without a cap describe a
 strategy nobody could actually run. Capping makes the backtest describe
 something executable.
 
-Selection rule: strictly CHRONOLOGICAL, by entry_time, within each day.
-This is deliberate, not incidental — a live trader/system encounters
-signals in time order throughout the day and has no way to know in advance
-which of today's signals will turn out best; picking "the best N signals
-of the day" after the fact would be look-ahead bias. First-N-in-time is
-the only selection rule a live system could actually implement.
+Selection rule when more signals fire than the day's budget allows: two
+modes, both non-lookahead —
+
+  "chronological": strictly by entry_time. A live trader/system encounters
+  signals in time order and has no way to know in advance which of today's
+  signals will turn out best — picking "the best N of the day" by REALIZED
+  RETURN would be look-ahead bias no live system could implement.
+
+  "liquidity": prioritize signals from more liquid stocks first (still
+  chronological within the same liquidity tier). This is NOT look-ahead —
+  liquidity_rank is computed from trailing turnover before the trade, the
+  same way a real trader would keep a pre-ranked watchlist. More liquid
+  names mean lower realized slippage (see costs.slippage_bps), so this is
+  a legitimate, implementable-live way to bias toward better expected
+  outcomes without touching the trade's own future return.
+
+Explicitly NOT implemented: filtering by which trades actually won. That
+would make the backtest describe a strategy nobody could run live.
 
 Per-symbol cap is applied first (within a day), then the portfolio-wide
-cap is applied to what's left, both still in chronological order.
+cap is applied to what's left.
 """
 
 import pandas as pd
@@ -53,11 +65,21 @@ def risk_based_daily_cap(capital: float, risk_per_trade_pct: float = 0.5,
 
 
 def apply_daily_caps(all_trades: dict, max_trades_per_day: int = None,
-                      max_trades_per_symbol_per_day: int = None) -> dict:
+                      max_trades_per_symbol_per_day: int = None,
+                      priority: str = "chronological", rank: dict = None) -> dict:
     """all_trades: {symbol: trades_df}. Returns a same-shaped dict with
-    trades dropped per the caps. None for either cap means uncapped."""
+    trades dropped per the caps. None for either cap means uncapped.
+
+    priority: "chronological" (default) or "liquidity" — see module
+    docstring. "liquidity" requires `rank` ({symbol: liquidity_rank},
+    1 = most liquid).
+    """
     if max_trades_per_day is None and max_trades_per_symbol_per_day is None:
         return all_trades
+    if priority not in ("chronological", "liquidity"):
+        raise ValueError(f"unknown priority: {priority!r}")
+    if priority == "liquidity" and not rank:
+        raise ValueError("priority='liquidity' requires a rank dict")
 
     frames = []
     for symbol, trades in all_trades.items():
@@ -70,19 +92,25 @@ def apply_daily_caps(all_trades: dict, max_trades_per_day: int = None,
         return all_trades
 
     combined = pd.concat(frames, ignore_index=True)
-    combined = combined.sort_values(["date", "entry_time"]).reset_index(drop=True)
+    if priority == "liquidity":
+        combined["_liquidity_rank"] = combined["symbol"].map(rank).fillna(len(rank) + 1)
+        sort_cols = ["date", "_liquidity_rank", "entry_time"]
+    else:
+        sort_cols = ["date", "entry_time"]
+    combined = combined.sort_values(sort_cols).reset_index(drop=True)
 
     kept_parts = []
     for day, day_df in combined.groupby("date"):
-        day_df = day_df.sort_values("entry_time")
+        day_df = day_df.sort_values(sort_cols[1:])
         if max_trades_per_symbol_per_day is not None:
             day_df = day_df.groupby("symbol", group_keys=False).head(max_trades_per_symbol_per_day)
-            day_df = day_df.sort_values("entry_time")
+            day_df = day_df.sort_values(sort_cols[1:])
         if max_trades_per_day is not None:
             day_df = day_df.head(max_trades_per_day)
         kept_parts.append(day_df)
 
     kept = pd.concat(kept_parts, ignore_index=True) if kept_parts else combined.iloc[0:0]
+    kept = kept.drop(columns="_liquidity_rank", errors="ignore")
 
     result = {}
     for symbol, group in kept.groupby("symbol"):
