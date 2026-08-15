@@ -1,21 +1,25 @@
 """
-Builds the "top 500 most liquid NSE stocks" universe directly from Kite data
-(no NSE website dependency): pulls all NSE equity instruments, fetches
-recent daily volume for each, ranks by average daily turnover (price *
-volume), and keeps the top 500.
+Builds the intraday-tradable universe from NSE's official Nifty 500 index
+constituent list, matched against Kite's live instrument master to get each
+stock's instrument_token and to drop anything not currently tradable
+intraday.
 
-This makes liquidity the actual selection criterion, rather than index
-membership (Nifty 500) which is cap-weighted and reconstituted only twice
-a year.
+Why the official list instead of computing our own liquidity ranking:
+Nifty 500 membership is itself turnover/market-cap based and reconstituted
+twice a year by NSE Indices, so it's already "the ~500 most liquid NSE
+stocks" — no need to reinvent that ranking from raw Kite volume data.
 
-Rate-limited to stay well under Kite's API limits; checkpoints progress to
-CSV so a failed run can resume instead of refetching everything.
+Why we still filter through Kite's instrument master: a stock can be a
+Nifty 500 constituent but currently trading under a suffixed series (e.g.
+"-BE", trade-to-trade) due to a temporary surveillance action — those
+can't be shorted or even day-traded at all (compulsory delivery
+settlement), so they're excluded here rather than left for the backtest
+to silently assume they're tradable.
 
 Usage:
-    python3 kite_universe.py --lookback-days 60 --top-n 500
+    python3 kite_universe.py
 """
 
-import argparse
 import os
 import time
 from datetime import datetime, timedelta
@@ -24,29 +28,32 @@ import pandas as pd
 
 from kite_auth import get_kite
 
-CHECKPOINT_FILE = os.path.join(os.path.dirname(__file__), "_universe_checkpoint.csv")
+NIFTY500_URL = "https://archives.nseindia.com/content/indices/ind_nifty500list.csv"
 OUTPUT_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "data", "intraday", "universe_top500.csv")
-
-REQUEST_DELAY_SEC = 0.35   # ~2.8 req/sec, under Kite's ~3 req/sec ceiling
+REQUEST_DELAY_SEC = 0.35
 MAX_RETRIES = 4
 
 
-def fetch_nse_equities(kite) -> pd.DataFrame:
-    """NSE's Kite instrument dump tags SDLs/G-secs, SME-board stocks, NCDs,
-    and REIT/InvIT units all as instrument_type=="EQ" too — they're not the
-    liquid mainboard stocks we want. Real NSE cash-equity stocks always
-    trade in market lot size 1 (SDLs/SME/NCDs/trusts don't), so filtering on
-    that is a much more accurate mainboard-equity filter than instrument_type
-    alone. Any oddity that slips through still gets pushed out of the top
-    500 by the turnover ranking itself.
+def fetch_nifty500_symbols() -> pd.DataFrame:
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+    df = pd.read_csv(NIFTY500_URL, storage_options=headers)
+    df = df.rename(columns={"Symbol": "tradingsymbol", "Company Name": "name", "Industry": "industry"})
+    return df[["tradingsymbol", "name", "industry"]]
+
+
+def fetch_tradable_nse_equities(kite) -> pd.DataFrame:
+    """Plain (no series-suffix) tradingsymbols only — real mainboard EQ-series
+    stocks tradable intraday. Suffixed variants (-BE/-BZ trade-to-trade,
+    -SM/-ST SME board, -SG/-GS/-GB/-N0..N9 bonds/SDLs/SGBs/NCDs) are excluded;
+    none of them support intraday MIS orders either way.
     """
     instruments = pd.DataFrame(kite.instruments("NSE"))
     equities = instruments[
         (instruments["instrument_type"] == "EQ") &
         (instruments["segment"] == "NSE") &
-        (instruments["lot_size"] == 1)
+        (~instruments["tradingsymbol"].str.contains("-"))
     ].copy()
-    return equities[["instrument_token", "tradingsymbol", "name"]]
+    return equities[["instrument_token", "tradingsymbol"]]
 
 
 def _fetch_with_retry(kite, token, from_date, to_date):
@@ -60,60 +67,55 @@ def _fetch_with_retry(kite, token, from_date, to_date):
     return []
 
 
-def compute_avg_turnover(kite, equities: pd.DataFrame, lookback_days: int) -> pd.DataFrame:
-    done = {}
-    if os.path.exists(CHECKPOINT_FILE):
-        existing = pd.read_csv(CHECKPOINT_FILE)
-        done = dict(zip(existing["tradingsymbol"], existing["avg_turnover"]))
-        print(f"Resuming: {len(done)} symbols already have turnover computed.")
-
+def rank_by_liquidity(kite, universe: pd.DataFrame, lookback_days: int = 60) -> pd.DataFrame:
+    """The Nifty 500 CSV lists constituents alphabetically, not by liquidity,
+    but the backtest's slippage model needs a relative liquidity ordering
+    within the 500 (most liquid = tightest assumed slippage). Rank these 500
+    by recent average daily turnover from Kite.
+    """
     to_date = datetime.today()
-    from_date = to_date - timedelta(days=int(lookback_days * 1.6))  # pad for weekends/holidays
+    from_date = to_date - timedelta(days=int(lookback_days * 1.6))
 
-    rows = list(done.items())
-    remaining = equities[~equities["tradingsymbol"].isin(done.keys())]
-    print(f"Fetching daily volume for {len(remaining)} remaining symbols...")
-
-    for i, r in enumerate(remaining.itertuples(), start=1):
+    turnovers = []
+    for i, r in enumerate(universe.itertuples(), start=1):
         candles = _fetch_with_retry(kite, r.instrument_token, from_date, to_date)
+        avg_turnover = 0.0
         if candles:
             df = pd.DataFrame(candles).tail(lookback_days)
             avg_turnover = (df["close"] * df["volume"]).mean()
-        else:
-            avg_turnover = 0.0
-
-        rows.append((r.tradingsymbol, avg_turnover))
+        turnovers.append(avg_turnover)
         time.sleep(REQUEST_DELAY_SEC)
+        if i % 100 == 0:
+            print(f"  liquidity ranking progress: {i}/{len(universe)}")
 
-        if i % 50 == 0:
-            pd.DataFrame(rows, columns=["tradingsymbol", "avg_turnover"]).to_csv(CHECKPOINT_FILE, index=False)
-            print(f"  progress: {i}/{len(remaining)} (checkpoint saved)")
-
-    result = pd.DataFrame(rows, columns=["tradingsymbol", "avg_turnover"])
-    result.to_csv(CHECKPOINT_FILE, index=False)
-    return result.merge(equities, on="tradingsymbol", how="left")
+    universe = universe.copy()
+    universe["avg_turnover"] = turnovers
+    universe = universe.sort_values("avg_turnover", ascending=False).reset_index(drop=True)
+    universe["liquidity_rank"] = universe.index + 1
+    return universe
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--lookback-days", type=int, default=60,
-                         help="trading days of volume history to average for the liquidity ranking")
-    parser.add_argument("--top-n", type=int, default=500)
-    args = parser.parse_args()
+    nifty500 = fetch_nifty500_symbols()
+    print(f"Nifty 500 official constituents: {len(nifty500)}")
 
     kite = get_kite()
-    equities = fetch_nse_equities(kite)
-    print(f"Found {len(equities)} NSE equity instruments.")
+    tradable = fetch_tradable_nse_equities(kite)
+    print(f"Currently tradable (plain-series) NSE equities in Kite: {len(tradable)}")
 
-    ranked = compute_avg_turnover(kite, equities, args.lookback_days)
-    ranked = ranked.sort_values("avg_turnover", ascending=False).reset_index(drop=True)
-    ranked["liquidity_rank"] = ranked.index + 1
+    merged = nifty500.merge(tradable, on="tradingsymbol", how="inner")
+    dropped = set(nifty500["tradingsymbol"]) - set(merged["tradingsymbol"])
+    if dropped:
+        print(f"Dropped {len(dropped)} Nifty 500 symbols not currently intraday-tradable "
+              f"(renamed/suspended/under a restricted series): {sorted(dropped)}")
 
-    top = ranked.head(args.top_n)
+    print(f"Ranking {len(merged)} stocks by recent liquidity (turnover)...")
+    ranked = rank_by_liquidity(kite, merged)
+
     os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
-    top.to_csv(OUTPUT_FILE, index=False)
-    print(f"Saved top {len(top)} liquid NSE stocks to {OUTPUT_FILE}")
-    print(top[["liquidity_rank", "tradingsymbol", "name", "avg_turnover"]].head(10).to_string(index=False))
+    ranked.to_csv(OUTPUT_FILE, index=False)
+    print(f"Saved {len(ranked)} stocks to {OUTPUT_FILE}")
+    print(ranked[["liquidity_rank", "tradingsymbol", "name", "avg_turnover"]].head(10).to_string(index=False))
 
 
 if __name__ == "__main__":
