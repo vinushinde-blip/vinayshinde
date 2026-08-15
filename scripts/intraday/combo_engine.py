@@ -5,10 +5,11 @@ entry_price, exit_time, exit_price, exit_reason) so it plugs into the
 existing engine.py/metrics.py pipeline unchanged.
 
 Indicators are computed once per symbol on the whole continuous series (not
-reset each day — same as any charting platform's intraday RSI/MACD/etc.),
-but positions are still forced flat by each day's last bar: no carrying
-intraday risk overnight, consistent with how MIS/intraday orders actually
-work.
+reset each day — same as any charting platform's intraday RSI/MACD/etc.).
+Positions respect market_rules: no new entries within ~12 min of the real
+Zerodha MIS square-off (~15:12 IST), and a still-open position is force-
+exited at the bar covering that cutoff rather than the day's literal last
+bar (~15-20 min later than a live account could actually hold to).
 
 Risk is ATR-based here (stop/target in multiples of ATR at the signal bar)
 rather than opening-range-based, since these are generic indicator signals
@@ -18,12 +19,15 @@ without a natural range of their own.
 import pandas as pd
 
 import indicators as ind
+import market_rules as mr
 
 
 def generate_trades(df: pd.DataFrame, signal: pd.Series, long_ok: pd.Series, short_ok: pd.Series,
                      stop_atr_mult: float = 1.5, target_atr_mult: float = 3.0,
                      warmup_bars: int = 30) -> pd.DataFrame:
     atr = ind.atr(df, 14)
+    bar_interval = mr.infer_bar_interval(df)
+    squareoff_trigger = mr.squareoff_trigger_time(bar_interval)
     trades = []
 
     for day, day_df in df.groupby(df.index.date):
@@ -36,6 +40,16 @@ def generate_trades(df: pd.DataFrame, signal: pd.Series, long_ok: pd.Series, sho
             idx = bar.Index
 
             if in_position:
+                if idx.time() >= squareoff_trigger:
+                    trades.append({
+                        "date": day, "direction": direction,
+                        "entry_time": entry_time, "entry_price": entry_price,
+                        "exit_time": idx, "exit_price": bar.open,
+                        "exit_reason": "squareoff",
+                    })
+                    in_position = False
+                    continue
+
                 if direction == 1:
                     hit_stop, hit_target = bar.low <= stop, bar.high >= target
                 else:
@@ -64,6 +78,8 @@ def generate_trades(df: pd.DataFrame, signal: pd.Series, long_ok: pd.Series, sho
                 continue  # no next bar today to enter on
 
             next_bar = bars[i + 1]
+            if not mr.is_entry_allowed(next_bar.Index):
+                continue
             direction = int(sig)
             entry_price = next_bar.open
             entry_time = next_bar.Index
@@ -82,7 +98,7 @@ def generate_trades(df: pd.DataFrame, signal: pd.Series, long_ok: pd.Series, sho
                 "date": day, "direction": direction,
                 "entry_time": entry_time, "entry_price": entry_price,
                 "exit_time": last_bar.Index, "exit_price": last_bar.close,
-                "exit_reason": "eod",
+                "exit_reason": "eod_fallback",
             })
 
     return pd.DataFrame(trades)
