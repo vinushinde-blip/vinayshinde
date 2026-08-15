@@ -8,3 +8,4 @@ scripts/intraday/_universe_checkpoint.csv
 
 # Raw fetched intraday bars are large and regenerable from Kite — don't commit
 data/intraday/bars/
+data/intraday/trade_log.csv
