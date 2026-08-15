@@ -32,9 +32,19 @@ MAX_RETRIES = 4
 
 
 def fetch_nse_equities(kite) -> pd.DataFrame:
+    """NSE's Kite instrument dump tags SDLs/G-secs, SME-board stocks, NCDs,
+    and REIT/InvIT units all as instrument_type=="EQ" too — they're not the
+    liquid mainboard stocks we want. Real NSE cash-equity stocks always
+    trade in market lot size 1 (SDLs/SME/NCDs/trusts don't), so filtering on
+    that is a much more accurate mainboard-equity filter than instrument_type
+    alone. Any oddity that slips through still gets pushed out of the top
+    500 by the turnover ranking itself.
+    """
     instruments = pd.DataFrame(kite.instruments("NSE"))
     equities = instruments[
-        (instruments["instrument_type"] == "EQ") & (instruments["segment"] == "NSE")
+        (instruments["instrument_type"] == "EQ") &
+        (instruments["segment"] == "NSE") &
+        (instruments["lot_size"] == 1)
     ].copy()
     return equities[["instrument_token", "tradingsymbol", "name"]]
 
