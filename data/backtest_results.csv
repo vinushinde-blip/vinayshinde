@@ -1,0 +1,9 @@
+,CAGR,Volatility,Sharpe,MaxDrawdown,MonthlyWinRate,FinalMultiple,Trades
+Buy&Hold NIFTYBEES,12.26%,14.66%,0.88,-36.34%,60.00%,3.17x,
+Buy&Hold GOLDBEES,16.01%,15.94%,1.03,-24.44%,60.83%,4.41x,
+Static 50/50 (monthly rebal),14.95%,11.03%,1.34,-20.89%,66.67%,4.02x,
+NIFTYBEES 200-SMA Trend,5.57%,10.10%,0.60,-18.54%,45.00%,1.72x,75
+GOLDBEES 200-SMA Trend,13.43%,15.15%,0.93,-24.99%,49.17%,3.52x,65
+Dual Momentum Rotation (3M),19.51%,15.46%,1.25,-24.44%,60.00%,5.93x,30
+Dual Momentum Rotation (6M),15.50%,16.31%,0.98,-24.44%,58.33%,4.22x,23
+Golden/Death Cross Rotation (50/200),8.13%,14.59%,0.62,-33.94%,57.50%,2.18x,14
