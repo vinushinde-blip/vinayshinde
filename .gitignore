@@ -1,2 +1,10 @@
 __pycache__/
 *.pyc
+
+# Kite Connect session/credentials — never commit these
+scripts/intraday/.kite_session.json
+scripts/intraday/_universe_checkpoint.csv
+.env
+
+# Raw fetched intraday bars are large and regenerable from Kite — don't commit
+data/intraday/bars/
