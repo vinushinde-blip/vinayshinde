@@ -12,9 +12,10 @@ BROKERAGE_PER_ORDER_FLAT = 20.0          # Rs, or 0.03% of order value, whicheve
 BROKERAGE_PCT = 0.0003
 STT_SELL_PCT = 0.00025                   # STT on intraday equity, sell side only
 EXCHANGE_TXN_PCT = 0.0000297             # NSE transaction charges, both sides
-SEBI_PCT = 0.0000001                     # SEBI turnover fee, both sides
+SEBI_PCT = 0.000001                      # SEBI turnover fee: Rs 10/crore = 0.0001%, both sides
 STAMP_DUTY_BUY_PCT = 0.00003             # stamp duty, buy side only
 GST_PCT = 0.18                           # on (brokerage + exchange txn charges)
+# DP charges do NOT apply — intraday square-off never touches the demat account.
 
 
 def round_trip_cost_pct(buy_price: float, sell_price: float, quantity: int) -> float:
