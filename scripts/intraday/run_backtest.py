@@ -20,6 +20,7 @@ import pandas as pd
 from strategies import STRATEGIES
 from engine import apply_costs, portfolio_daily_returns, equity_curve
 from metrics import performance_metrics, walk_forward_split
+from trade_caps import apply_daily_caps, risk_based_daily_cap
 
 BARS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data", "intraday", "bars")
 UNIVERSE_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "data", "intraday", "universe_top500.csv")
@@ -43,10 +44,16 @@ def load_bars() -> dict:
 
 
 def run_one_strategy(strat_name, strat_fn, bars: dict, rank: dict, universe_size: int,
-                      cost_multiplier: float = 1.0, direction: int = None):
+                      cost_multiplier: float = 1.0, direction: int = None,
+                      max_trades_per_day: int = None, max_trades_per_symbol_per_day: int = None):
     """direction: None runs both legs, +1 long-only, -1 short-only (filters
     each symbol's trades before aggregating, so costs/aggregation logic is
-    identical to the combined run — only which trades count differs)."""
+    identical to the combined run — only which trades count differs).
+
+    max_trades_per_day / max_trades_per_symbol_per_day: see trade_caps.py —
+    without these, "all trades" includes far more signals per day than
+    anyone could actually execute (e.g. vwap_mean_reversion fires ~2,000
+    signals/day across the 500-stock universe)."""
     all_trades = {}
     for symbol, df in bars.items():
         trades = strat_fn(df)
@@ -64,6 +71,7 @@ def run_one_strategy(strat_name, strat_fn, bars: dict, rank: dict, universe_size
                 continue
         all_trades[symbol] = trades
 
+    all_trades = apply_daily_caps(all_trades, max_trades_per_day, max_trades_per_symbol_per_day)
     daily = portfolio_daily_returns(all_trades)
     total_trades = sum(len(t) for t in all_trades.values())
     long_trades = sum((t["direction"] == 1).sum() for t in all_trades.values())
@@ -75,7 +83,25 @@ def run_one_strategy(strat_name, strat_fn, bars: dict, rank: dict, universe_size
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--strategy", choices=list(STRATEGIES), default=None)
+    parser.add_argument("--max-trades-per-day", type=int, default=None,
+                         help="cap total trades/day directly (overrides the risk-based calc below if both given)")
+    parser.add_argument("--max-trades-per-symbol-per-day", type=int, default=1,
+                         help="cap trades/day for any one stock (default: 1 — no re-entering the same name same day)")
+    parser.add_argument("--risk-per-trade-pct", type=float, default=0.5,
+                         help="max %% of capital risked on a single trade if its stop is hit (default: 0.5%%)")
+    parser.add_argument("--daily-risk-budget-pct", type=float, default=3.0,
+                         help="max %% of capital at risk in a day before stopping, worst-case (default: 3%%)")
     args = parser.parse_args()
+
+    max_trades_per_day = args.max_trades_per_day
+    if max_trades_per_day is None:
+        max_trades_per_day = risk_based_daily_cap(
+            capital=1.0,  # capital cancels out of the ratio; only the two %% args matter for the count
+            risk_per_trade_pct=args.risk_per_trade_pct,
+            daily_risk_budget_pct=args.daily_risk_budget_pct,
+        )
+        print(f"No --max-trades-per-day given: using risk-based cap of {max_trades_per_day} trades/day "
+              f"({args.daily_risk_budget_pct}% daily risk budget / {args.risk_per_trade_pct}% risk per trade).")
 
     bars, rank = load_bars()
     if not bars:
@@ -86,7 +112,9 @@ def main():
 
     def build_row(label, strat_name, strat_fn, direction):
         daily, n_trades, n_long, n_short = run_one_strategy(
-            strat_name, strat_fn, bars, rank, universe_size, direction=direction)
+            strat_name, strat_fn, bars, rank, universe_size, direction=direction,
+            max_trades_per_day=max_trades_per_day,
+            max_trades_per_symbol_per_day=args.max_trades_per_symbol_per_day)
         if daily.empty:
             print(f"{label}: no trades generated, skipping")
             return None
@@ -97,7 +125,9 @@ def main():
         test_m = performance_metrics(test)
 
         daily_2x, *_ = run_one_strategy(
-            strat_name, strat_fn, bars, rank, universe_size, cost_multiplier=2.0, direction=direction)
+            strat_name, strat_fn, bars, rank, universe_size, cost_multiplier=2.0, direction=direction,
+            max_trades_per_day=max_trades_per_day,
+            max_trades_per_symbol_per_day=args.max_trades_per_symbol_per_day)
         cagr_2x = performance_metrics(daily_2x).get("CAGR")
 
         return {
