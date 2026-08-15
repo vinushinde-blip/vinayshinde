@@ -20,7 +20,7 @@ import pandas as pd
 from strategies import STRATEGIES
 from engine import apply_costs, portfolio_daily_returns, equity_curve
 from metrics import performance_metrics, walk_forward_split
-from trade_caps import apply_daily_caps, risk_based_daily_cap
+from trade_caps import apply_daily_caps, apply_concurrency_cap, restrict_to_liquid_universe, risk_based_daily_cap
 
 BARS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data", "intraday", "bars")
 UNIVERSE_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "data", "intraday", "universe_top500.csv")
@@ -46,7 +46,8 @@ def load_bars() -> dict:
 def run_one_strategy(strat_name, strat_fn, bars: dict, rank: dict, universe_size: int,
                       cost_multiplier: float = 1.0, direction: int = None,
                       max_trades_per_day: int = None, max_trades_per_symbol_per_day: int = None,
-                      cap_priority: str = "liquidity"):
+                      cap_priority: str = "liquidity", max_concurrent_positions: int = None,
+                      universe_top_n: int = None):
     """direction: None runs both legs, +1 long-only, -1 short-only (filters
     each symbol's trades before aggregating, so costs/aggregation logic is
     identical to the combined run — only which trades count differs).
@@ -54,7 +55,13 @@ def run_one_strategy(strat_name, strat_fn, bars: dict, rank: dict, universe_size
     max_trades_per_day / max_trades_per_symbol_per_day: see trade_caps.py —
     without these, "all trades" includes far more signals per day than
     anyone could actually execute (e.g. vwap_mean_reversion fires ~2,000
-    signals/day across the 500-stock universe)."""
+    signals/day across the 500-stock universe).
+
+    max_concurrent_positions: if set, uses the concurrency-simulating cap
+    (apply_concurrency_cap) instead of the flat daily cap — the more
+    realistic constraint, since capital frees up when a position closes,
+    not just once/day. universe_top_n restricts to that many of the most
+    liquid stocks before any other cap runs."""
     all_trades = {}
     for symbol, df in bars.items():
         trades = strat_fn(df)
@@ -72,8 +79,15 @@ def run_one_strategy(strat_name, strat_fn, bars: dict, rank: dict, universe_size
                 continue
         all_trades[symbol] = trades
 
-    all_trades = apply_daily_caps(all_trades, max_trades_per_day, max_trades_per_symbol_per_day,
-                                   priority=cap_priority, rank=rank)
+    if universe_top_n is not None:
+        all_trades = restrict_to_liquid_universe(all_trades, rank, universe_top_n)
+
+    if max_concurrent_positions is not None:
+        all_trades = apply_concurrency_cap(all_trades, max_concurrent_positions,
+                                            max_trades_per_day, max_trades_per_symbol_per_day, rank=rank)
+    else:
+        all_trades = apply_daily_caps(all_trades, max_trades_per_day, max_trades_per_symbol_per_day,
+                                       priority=cap_priority, rank=rank)
     daily = portfolio_daily_returns(all_trades)
     total_trades = sum(len(t) for t in all_trades.values())
     long_trades = sum((t["direction"] == 1).sum() for t in all_trades.values())
@@ -96,7 +110,17 @@ def main():
     parser.add_argument("--cap-priority", choices=["liquidity", "chronological"], default="liquidity",
                          help="when more signals fire than the cap allows, which to keep (default: liquidity — "
                               "see trade_caps.py; never realized-return-based, that would be look-ahead bias)")
+    parser.add_argument("--max-concurrent-positions", type=int, default=4,
+                         help="max positions open at once — the realistic version of the daily cap, since "
+                              "capital frees up when a position closes rather than once/day (default: 4; "
+                              "pass 0 to fall back to the flat daily-count cap instead)")
+    parser.add_argument("--universe-top-n", type=int, default=200,
+                         help="restrict to this many of the most liquid stocks before any other cap runs "
+                              "(default: 200 of 500 — trading the illiquid tail isn't worth the execution risk; "
+                              "pass 0 for no restriction)")
     args = parser.parse_args()
+    max_concurrent_positions = args.max_concurrent_positions or None
+    universe_top_n = args.universe_top_n or None
 
     max_trades_per_day = args.max_trades_per_day
     if max_trades_per_day is None:
@@ -119,7 +143,7 @@ def main():
         daily, n_trades, n_long, n_short = run_one_strategy(
             strat_name, strat_fn, bars, rank, universe_size, direction=direction,
             max_trades_per_day=max_trades_per_day,
-            max_trades_per_symbol_per_day=args.max_trades_per_symbol_per_day, cap_priority=args.cap_priority)
+            max_trades_per_symbol_per_day=args.max_trades_per_symbol_per_day, cap_priority=args.cap_priority, max_concurrent_positions=max_concurrent_positions, universe_top_n=universe_top_n)
         if daily.empty:
             print(f"{label}: no trades generated, skipping")
             return None
@@ -132,7 +156,7 @@ def main():
         daily_2x, *_ = run_one_strategy(
             strat_name, strat_fn, bars, rank, universe_size, cost_multiplier=2.0, direction=direction,
             max_trades_per_day=max_trades_per_day,
-            max_trades_per_symbol_per_day=args.max_trades_per_symbol_per_day, cap_priority=args.cap_priority)
+            max_trades_per_symbol_per_day=args.max_trades_per_symbol_per_day, cap_priority=args.cap_priority, max_concurrent_positions=max_concurrent_positions, universe_top_n=universe_top_n)
         cagr_2x = performance_metrics(daily_2x).get("CAGR")
 
         return {
