@@ -9,3 +9,6 @@ scripts/intraday/_universe_checkpoint.csv
 # Raw fetched intraday bars are large and regenerable from Kite — don't commit
 data/intraday/bars/
 data/intraday/trade_log.csv
+# run_backtest.py's default output — regenerable, overwritten on every run;
+# commit named snapshots explicitly instead (e.g. backtest_results_uncapped.csv)
+data/intraday/backtest_results.csv
