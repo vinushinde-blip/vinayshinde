@@ -1,0 +1,501 @@
+tradingsymbol,name,industry,instrument_token,avg_turnover,liquidity_rank
+HDFCBANK,HDFC Bank Ltd.,Financial Services,341249,26766725907.636665,1
+ICICIBANK,ICICI Bank Ltd.,Financial Services,1270529,19004624306.863335,2
+RELIANCE,Reliance Industries Ltd.,Oil Gas & Consumable Fuels,738561,18314878738.181667,3
+INFY,Infosys Ltd.,Information Technology,408065,15987270119.045,4
+BHARTIARTL,Bharti Airtel Ltd.,Telecommunication,2714625,14190534199.496668,5
+BSE,BSE Ltd.,Financial Services,5013761,13085750598.351665,6
+SBIN,State Bank of India,Financial Services,779521,12525213347.075832,7
+KALYANKJIL,Kalyan Jewellers India Ltd.,Consumer Durables,756481,11959435936.994999,8
+TCS,Tata Consultancy Services Ltd.,Information Technology,2953217,11082622881.656668,9
+BAJFINANCE,Bajaj Finance Ltd.,Financial Services,81153,9949835320.789167,10
+AXISBANK,Axis Bank Ltd.,Financial Services,1510401,9207282137.738335,11
+M&M,Mahindra & Mahindra Ltd.,Automobile and Auto Components,519937,9056349306.55,12
+MCX,Multi Commodity Exchange of India Ltd.,Financial Services,7982337,8912142520.683332,13
+ETERNAL,Eternal Ltd.,Consumer Services,1304833,8854162563.015333,14
+NETWEB,Netweb Technologies India Ltd.,Information Technology,4462849,8367978726.631666,15
+LT,Larsen & Toubro Ltd.,Construction,2939649,7871810912.266666,16
+HSCL,Himadri Speciality Chemical Ltd.,Chemicals,3669505,7554251541.634167,17
+DIXON,Dixon Technologies (India) Ltd.,Consumer Durables,5552641,7086929169.533334,18
+ADANIPOWER,Adani Power Ltd.,Power,4451329,6856640484.6189995,19
+IDEA,Vodafone Idea Ltd.,Telecommunication,3677697,6789888802.791834,20
+HFCL,HFCL Ltd.,Telecommunication,5619457,6624415135.991,21
+MARUTI,Maruti Suzuki India Ltd.,Automobile and Auto Components,2815745,6390293471.1,22
+GROWW,Billionbrains Garage Ventures Ltd.,Financial Services,194510337,6289026682.953,23
+HINDALCO,Hindalco Industries Ltd.,Metals & Mining,348929,6122384024.571668,24
+POWERINDIA,Hitachi Energy India Ltd.,Capital Goods,4724993,5999631673.583333,25
+KOTAKBANK,Kotak Mahindra Bank Ltd.,Financial Services,492033,5857213510.9675,26
+SHRIRAMFIN,Shriram Finance Ltd.,Financial Services,1102337,5788536255.265833,27
+ATHERENERG,Ather Energy Ltd.,Automobile and Auto Components,193957121,5731565039.825834,28
+VEDL,Vedanta Ltd.,Metals & Mining,784129,5655526939.2375,29
+ADANIENT,Adani Enterprises Ltd.,Metals & Mining,6401,5550424545.318334,30
+INDIGO,InterGlobe Aviation Ltd.,Services,2865921,5478395374.066667,31
+BHEL,Bharat Heavy Electricals Ltd.,Capital Goods,112129,5304803032.371668,32
+COALINDIA,Coal India Ltd.,Oil Gas & Consumable Fuels,5215745,5228015575.804167,33
+COFORGE,Coforge Ltd.,Information Technology,2955009,5180885004.2316675,34
+TATASTEEL,Tata Steel Ltd.,Metals & Mining,895745,5171491767.271334,35
+BEL,Bharat Electronics Ltd.,Capital Goods,98049,5113639417.804999,36
+OLAELEC,Ola Electric Mobility Ltd.,Automobile and Auto Components,6342913,4999787911.464833,37
+GVT&D,GE Vernova T&D India Ltd.,Capital Goods,4296449,4948915748.253333,38
+DATAPATTNS,Data Patterns (India) Ltd.,Capital Goods,1883649,4805585263.256667,39
+SWIGGY,Swiggy Ltd.,Consumer Services,6928897,4786525261.342,40
+IFCI,IFCI Ltd.,Financial Services,381697,4724035677.1285,41
+TVSMOTOR,TVS Motor Company Ltd.,Automobile and Auto Components,2170625,4584389845.636666,42
+TRENT,Trent Ltd.,Consumer Services,502785,4565811932.44,43
+HCLTECH,HCL Technologies Ltd.,Information Technology,1850625,4565368013.133334,44
+ITC,ITC Ltd.,Fast Moving Consumer Goods,424961,4564701852.169999,45
+WIPRO,Wipro Ltd.,Information Technology,969473,4563533897.575334,46
+SUNPHARMA,Sun Pharmaceutical Industries Ltd.,Healthcare,857857,4528235749.441667,47
+SUZLON,Suzlon Energy Ltd.,Capital Goods,3076609,4512199936.655666,48
+EICHERMOT,Eicher Motors Ltd.,Automobile and Auto Components,232961,4511859230.033334,49
+PAYTM,One 97 Communications Ltd.,Financial Services,1716481,4494134554.195,50
+NATIONALUM,National Aluminium Co. Ltd.,Metals & Mining,1629185,4469438854.050833,51
+ZEEL,Zee Entertainment Enterprises Ltd.,Media Entertainment & Publication,975873,4445578065.4765005,52
+KAYNES,Kaynes Technology India Ltd.,Capital Goods,3095553,4417928698.065,53
+ADANIENSOL,Adani Energy Solutions Ltd.,Power,2615553,4328955609.095,54
+TITAN,Titan Company Ltd.,Consumer Durables,897537,4276866432.948333,55
+HAL,Hindustan Aeronautics Ltd.,Capital Goods,589569,4275139541.875,56
+BAJAJ-AUTO,Bajaj Auto Ltd.,Automobile and Auto Components,4267265,4258238803.766667,57
+ADANIGREEN,Adani Green Energy Ltd.,Power,912129,4246732822.435,58
+NTPC,NTPC Ltd.,Power,2977281,4226574098.5175,59
+HINDUNILVR,Hindustan Unilever Ltd.,Fast Moving Consumer Goods,356865,4225094401.7133336,60
+TECHM,Tech Mahindra Ltd.,Information Technology,3465729,4145130070.961667,61
+TMPV,Tata Motors Passenger Vehicles Ltd.,Automobile and Auto Components,884737,4108718607.0641665,62
+PINELABS,Pine Labs Ltd.,Financial Services,194513921,4093699798.9846663,63
+JIOFIN,Jio Financial Services Ltd.,Financial Services,4644609,4036231621.4758334,64
+ASHOKLEY,Ashok Leyland Ltd.,Capital Goods,54273,3987513670.8280005,65
+CGPOWER,CG Power and Industrial Solutions Ltd.,Capital Goods,194561,3975890577.4816666,66
+ATGL,Adani Total Gas Ltd.,Oil Gas & Consumable Fuels,1552897,3874302294.4074993,67
+PERSISTENT,Persistent Systems Ltd.,Information Technology,4701441,3832692419.2549996,68
+ADANIPORTS,Adani Ports and Special Economic Zone Ltd.,Services,3861249,3766904688.251666,69
+MEESHO,Meesho Ltd.,Consumer Services,194618625,3766035414.176167,70
+OFSS,Oracle Financial Services Software Ltd.,Information Technology,2748929,3756622499.883333,71
+TMCV,Tata Motors Ltd.,Capital Goods,194504193,3751059342.9608326,72
+ONGC,Oil & Natural Gas Corporation Ltd.,Oil Gas & Consumable Fuels,633601,3742072619.1540003,73
+HEROMOTOCO,Hero MotoCorp Ltd.,Automobile and Auto Components,345089,3723425157.6933336,74
+LICI,Life Insurance Corporation of India,Financial Services,2426881,3686145863.1808333,75
+CANBK,Canara Bank,Financial Services,2763265,3583999322.5433335,76
+MOTHERSON,Samvardhana Motherson International Ltd.,Automobile and Auto Components,1076225,3544941112.5959997,77
+FEDERALBNK,Federal Bank Ltd.,Financial Services,261889,3529328662.689166,78
+ULTRACEMCO,UltraTech Cement Ltd.,Construction Materials,2952193,3517175457.5666666,79
+LENSKART,Lenskart Solutions Ltd.,Consumer Services,194458881,3483859355.7900004,80
+LAURUSLABS,Laurus Labs Ltd.,Healthcare,4923905,3428245402.895001,81
+AEGISLOG,Aegis Logistics Ltd.,Oil Gas & Consumable Fuels,10241,3382195156.433334,82
+APOLLOHOSP,Apollo Hospitals Enterprise Ltd.,Healthcare,40193,3346017429.0583334,83
+WOCKPHARMA,Wockhardt Ltd.,Healthcare,1921537,3309645635.563333,84
+ASIANPAINT,Asian Paints Ltd.,Consumer Durables,60417,3290168367.48,85
+DIVISLAB,Divi's Laboratories Ltd.,Healthcare,2800641,3287175337.5916667,86
+TEJASNET,Tejas Networks Ltd.,Telecommunication,5409537,3242891969.855,87
+BANKBARODA,Bank of Baroda,Financial Services,1195009,3237316105.110167,88
+SAIL,Steel Authority of India Ltd.,Metals & Mining,758529,3230290422.4546666,89
+POLICYBZR,PB Fintech Ltd.,Financial Services,1703937,3220002764.7183332,90
+TORNTPHARM,Torrent Pharmaceuticals Ltd.,Healthcare,900609,3196880518.3933334,91
+NESTLEIND,Nestle India Ltd.,Fast Moving Consumer Goods,4598529,3175421448.1283336,92
+VBL,Varun Beverages Ltd.,Fast Moving Consumer Goods,4843777,3138320081.5416665,93
+MUTHOOTFIN,Muthoot Finance Ltd.,Financial Services,6054401,3117636822.935,94
+NAUKRI,Info Edge (India) Ltd.,Consumer Services,3520257,3112312985.1808333,95
+POLYCAB,Polycab India Ltd.,Capital Goods,2455041,3063153200.9,96
+LODHA,Lodha Developers Ltd.,Realty,824321,3052597265.3675003,97
+POWERGRID,Power Grid Corporation of India Ltd.,Power,3834113,3036907757.2083335,98
+CHOLAFIN,Cholamandalam Investment and Finance Company Ltd.,Financial Services,175361,2862977143.13,99
+CUMMINSIND,Cummins India Ltd.,Capital Goods,486657,2805446473.0583334,100
+DRREDDY,Dr. Reddy's Laboratories Ltd.,Healthcare,225537,2801263361.4233336,101
+AMBER,Amber Enterprises India Ltd.,Consumer Durables,303361,2763237357.858333,102
+DLF,DLF Ltd.,Realty,3771393,2750145015.136667,103
+SOLARINDS,Solar Industries India Ltd.,Chemicals,3412993,2741738037.25,104
+PFC,Power Finance Corporation Ltd.,Financial Services,3660545,2737807265.454167,105
+HINDCOPPER,Hindustan Copper Ltd.,Metals & Mining,4592385,2727780460.004167,106
+MAXHEALTH,Max Healthcare Institute Ltd.,Healthcare,5728513,2723533599.3658338,107
+ABB,ABB India Ltd.,Capital Goods,3329,2708178597.425,108
+WAAREEENER,Waaree Energies Ltd.,Capital Goods,6632193,2672612982.788333,109
+UNIONBANK,Union Bank of India,Financial Services,2752769,2667018396.346667,110
+INDIANB,Indian Bank,Financial Services,3663105,2643529813.294167,111
+CARTRADE,Cartrade Tech Ltd.,Consumer Services,1384193,2578003318.078333,112
+SAMMAANCAP,Sammaan Capital Ltd.,Financial Services,7712001,2554764341.731333,113
+BANDHANBNK,Bandhan Bank Ltd.,Financial Services,579329,2543159111.456,114
+APARINDS,Apar Industries Ltd.,Capital Goods,2941697,2539462880.4,115
+BHARATFORG,Bharat Forge Ltd.,Automobile and Auto Components,108033,2530049760.6966662,116
+NYKAA,FSN E-Commerce Ventures Ltd.,Consumer Services,1675521,2526189907.7816668,117
+HINDPETRO,Hindustan Petroleum Corporation Ltd.,Oil Gas & Consumable Fuels,359937,2505839011.6,118
+INDUSTOWER,Indus Towers Ltd.,Telecommunication,7458561,2493014865.113333,119
+DMART,Avenue Supermarts Ltd.,Consumer Services,5097729,2484133400.6400003,120
+ENRIN,Siemens Energy India Ltd.,Capital Goods,193758977,2447628555.325,121
+HYUNDAI,Hyundai Motor India Ltd.,Automobile and Auto Components,6616065,2405105812.9916673,122
+GRASIM,Grasim Industries Ltd.,Construction Materials,315393,2390923702.018333,123
+HINDZINC,Hindustan Zinc Ltd.,Metals & Mining,364545,2381796445.1441665,124
+BPCL,Bharat Petroleum Corporation Ltd.,Oil Gas & Consumable Fuels,134657,2372650574.736666,125
+ZENSARTECH,Zensar Technolgies Ltd.,Information Technology,275457,2348033218.3575,126
+HDFCAMC,HDFC Asset Management Company Ltd.,Financial Services,1086465,2343268366.1283336,127
+BAJAJFINSV,Bajaj Finserv Ltd.,Financial Services,4268801,2330348814.633333,128
+YESBANK,Yes Bank Ltd.,Financial Services,3050241,2316207619.2345,129
+LUPIN,Lupin Ltd.,Healthcare,2672641,2298887063.806667,130
+CDSL,Central Depository Services (India) Ltd.,Financial Services,5420545,2262245926.533334,131
+ANGELONE,Angel One Ltd.,Financial Services,82945,2255748894.0408335,132
+KPITTECH,KPIT Technologies Ltd.,Information Technology,2478849,2243471253.6150002,133
+JPPOWER,Jaiprakash Power Ventures Ltd.,Power,3011329,2214340519.004,134
+DELHIVERY,Delhivery Ltd.,Services,2457345,2207789539.43,135
+MRPL,Mangalore Refinery & Petrochemicals Ltd.,Oil Gas & Consumable Fuels,584449,2188254422.0278335,136
+GMRAIRPORT,GMR Airports Ltd.,Services,3463169,2175886616.371333,137
+REDINGTON,Redington Ltd.,Services,3649281,2154175296.0833335,138
+EXIDEIND,Exide Industries Ltd.,Automobile and Auto Components,173057,2154142446.395,139
+CIPLA,Cipla Ltd.,Healthcare,177665,2138305263.5283334,140
+CHENNPETRO,Chennai Petroleum Corporation Ltd.,Oil Gas & Consumable Fuels,524545,2121262737.8899999,141
+INDUSINDBK,IndusInd Bank Ltd.,Financial Services,1346049,2091666106.6666665,142
+NMDC,NMDC Ltd.,Metals & Mining,3924993,2083232983.7903333,143
+KEI,KEI Industries Ltd.,Capital Goods,3407361,2082166475.5083334,144
+LTM,LTM Ltd.,Information Technology,4561409,2075675992.4716666,145
+JSWSTEEL,JSW Steel Ltd.,Metals & Mining,3001089,2065831973.7850003,146
+PNB,Punjab National Bank,Financial Services,2730497,2051927996.3366666,147
+MAZDOCK,Mazagoan Dock Shipbuilders Ltd.,Capital Goods,130305,2046334886.9049997,148
+RECLTD,REC Ltd.,Financial Services,3930881,2019841522.6283336,149
+BIOCON,Biocon Ltd.,Healthcare,2911489,2017493245.38,150
+RBLBANK,RBL Bank Ltd.,Financial Services,4708097,2013415337.0291667,151
+NHPC,NHPC Ltd.,Power,4454401,2011800051.1744998,152
+FORCEMOT,Force Motors Ltd.,Automobile and Auto Components,2962689,2010071508.2833333,153
+HDFCLIFE,HDFC Life Insurance Company Ltd.,Financial Services,119553,1981220219.0025,154
+NEWGEN,Newgen Software Technologies Ltd.,Information Technology,297985,1976256920.3733332,155
+IDFCFIRSTB,IDFC First Bank Ltd.,Financial Services,2863105,1973940631.2970002,156
+AUBANK,AU Small Finance Bank Ltd.,Financial Services,5436929,1959858424.7949998,157
+AUROPHARMA,Aurobindo Pharma Ltd.,Healthcare,70401,1946914320.1683333,158
+GLAND,Gland Pharma Ltd.,Healthcare,303617,1933871199.0383334,159
+PATANJALI,Patanjali Foods Ltd.,Fast Moving Consumer Goods,4359425,1931476207.1091664,160
+COCHINSHIP,Cochin Shipyard Ltd.,Capital Goods,5506049,1924631742.6666667,161
+TATACONSUM,Tata Consumer Products Ltd.,Fast Moving Consumer Goods,878593,1924376060.638333,162
+BDL,Bharat Dynamics Ltd.,Capital Goods,548865,1912348684.4283335,163
+SYRMA,Syrma SGS Technology Ltd.,Capital Goods,2763009,1884069171.4575002,164
+KIRLOSENG,Kirloskar Oil Eng Ltd.,Capital Goods,5359617,1876340755.9166667,165
+JUBLFOOD,Jubilant Foodworks Ltd.,Consumer Services,4632577,1872453985.8091667,166
+IOC,Indian Oil Corporation Ltd.,Oil Gas & Consumable Fuels,415745,1864607842.3043332,167
+LTF,L&T Finance Ltd.,Financial Services,6386689,1836711666.2274997,168
+TATAPOWER,Tata Power Co. Ltd.,Power,877057,1830995616.0033333,169
+GRSE,Garden Reach Shipbuilders & Engineers Ltd.,Capital Goods,1401601,1789196987.791667,170
+GAIL,GAIL (India) Ltd.,Oil Gas & Consumable Fuels,1207553,1788955612.2245002,171
+BOSCHLTD,Bosch Ltd.,Automobile and Auto Components,558337,1780198078.4166667,172
+SBILIFE,SBI Life Insurance Company Ltd.,Financial Services,5582849,1771869271.675,173
+RVNL,Rail Vikas Nigam Ltd.,Construction,2445313,1755808269.1186666,174
+OIL,Oil India Ltd.,Oil Gas & Consumable Fuels,4464129,1750637309.4825003,175
+ICICIGI,ICICI Lombard General Insurance Company Ltd.,Financial Services,5573121,1736801275.1133335,176
+MARICO,Marico Ltd.,Fast Moving Consumer Goods,1041153,1694166505.8716667,177
+ZYDUSLIFE,Zydus Lifesciences Ltd.,Healthcare,2029825,1691947633.6299999,178
+BRITANNIA,Britannia Industries Ltd.,Fast Moving Consumer Goods,140033,1691904749.875,179
+SIEMENS,Siemens Ltd.,Capital Goods,806401,1690074068.4350002,180
+NAVINFLUOR,Navin Fluorine International Ltd.,Chemicals,3756033,1685289449.825,181
+INDHOTEL,Indian Hotels Co. Ltd.,Consumer Services,387073,1683776604.2233331,182
+RRKABEL,R R Kabel Ltd.,Capital Goods,4752897,1648776046.7400002,183
+M&MFIN,Mahindra & Mahindra Financial Services Ltd.,Financial Services,3400961,1621865838.6458333,184
+PIDILITIND,Pidilite Industries Ltd.,Chemicals,681985,1612634303.2066667,185
+SONACOMS,Sona BLW Precision Forgings Ltd.,Automobile and Auto Components,1199105,1607371922.8774998,186
+MANAPPURAM,Manappuram Finance Ltd.,Financial Services,4879617,1602645224.0933335,187
+ANANTRAJ,Anant Raj Ltd.,Realty,3486721,1601195854.6866667,188
+WELCORP,Welspun Corp Ltd.,Capital Goods,3026177,1589040829.2916667,189
+PREMIERENE,Premier Energies Ltd.,Capital Goods,6412545,1584235381.7266667,190
+JSWENERGY,JSW Energy Ltd.,Power,4574465,1576298932.040833,191
+PGEL,PG Electroplast Ltd.,Consumer Durables,6491649,1561453403.0666666,192
+RADICO,Radico Khaitan Ltd,Fast Moving Consumer Goods,2813441,1559572762.633333,193
+PWL,Physicswallah Ltd.,Consumer Services,194489089,1541171516.6821668,194
+ICICIAMC,ICICI Prudential Asset Management Company Ltd.,Financial Services,194664193,1538287232.085,195
+GODREJCP,Godrej Consumer Products Ltd.,Fast Moving Consumer Goods,2585345,1536977155.2766669,196
+ABCAPITAL,Aditya Birla Capital Ltd.,Financial Services,5533185,1528150840.471667,197
+THERMAX,Thermax Ltd.,Capital Goods,889601,1502394637.6966667,198
+NLCINDIA,NLC India Ltd.,Power,2197761,1469851719.2208335,199
+TATAELXSI,Tata Elxsi Ltd.,Information Technology,873217,1460007848.6,200
+FORTIS,Fortis Healthcare Ltd.,Healthcare,3735553,1452590001.4533334,201
+PAGEIND,Page Industries Ltd.,Textiles,3689729,1433814997.0,202
+SRF,SRF Ltd.,Chemicals,837889,1433481536.1383333,203
+GLENMARK,Glenmark Pharmaceuticals Ltd.,Healthcare,1895937,1402181551.8466666,204
+GODREJPROP,Godrej Properties Ltd.,Realty,4576001,1396261052.3116667,205
+NBCC,NBCC (India) Ltd.,Construction,8042241,1371100160.2859998,206
+ACUTAAS,Acutaas Chemicals Ltd.,Healthcare,1427969,1370305678.8633337,207
+SCI,Shipping Corporation of India Ltd.,Services,780289,1369255861.291667,208
+TATATECH,Tata Technologies Ltd.,Information Technology,5195009,1366250903.2458334,209
+IDBI,IDBI Bank Ltd.,Financial Services,377857,1365937390.5903332,210
+PPLPHARMA,Piramal Pharma Ltd.,Healthcare,2962177,1364744227.0088334,211
+MPHASIS,MphasiS Ltd.,Information Technology,1152769,1363086207.3383331,212
+JSWINFRA,JSW Infrastructure Ltd.,Services,4869121,1358651825.8250003,213
+ZENTEC,Zen Technologies Ltd.,Capital Goods,1922049,1357528603.4233332,214
+NIACL,The New India Assurance Company Ltd.,Financial Services,102145,1351252232.2638333,215
+HONASA,Honasa Consumer Ltd.,Fast Moving Consumer Goods,5072129,1350355713.611667,216
+MAHABANK,Bank of Maharashtra,Financial Services,2912513,1329114281.6751668,217
+UPL,UPL Ltd.,Chemicals,2889473,1316607818.2841668,218
+HAVELLS,Havells India Ltd.,Consumer Durables,2513665,1312680847.8083334,219
+BANKINDIA,Bank of India,Financial Services,1214721,1311606547.7143328,220
+JINDALSTEL,Jindal Steel Ltd.,Metals & Mining,1723649,1310419111.7966666,221
+PHOENIXLTD,Phoenix Mills Ltd.,Realty,3725313,1308596425.1549997,222
+APLAPOLLO,APL Apollo Tubes Ltd.,Capital Goods,6599681,1303073381.24,223
+KARURVYSYA,Karur Vysya Bank Ltd.,Financial Services,470529,1302787872.1308334,224
+AMBUJACEM,Ambuja Cements Ltd.,Construction Materials,325121,1299226262.143333,225
+NEULANDLAB,Neuland Laboratories Ltd.,Healthcare,615937,1297627321.45,226
+360ONE,360 ONE WAM Ltd.,Financial Services,3343617,1277947994.4483333,227
+ASTRAL,Astral Ltd.,Capital Goods,3691009,1274883620.7533333,228
+IIFL,IIFL Finance Ltd.,Financial Services,3023105,1266897120.9633334,229
+MFSL,Max Financial Services Ltd.,Financial Services,548353,1245716356.5983331,230
+VOLTAS,Voltas Ltd.,Consumer Durables,951809,1244475000.5800002,231
+MANKIND,Mankind Pharma Ltd.,Healthcare,3937281,1240682034.5266669,232
+UNITDSPR,United Spirits Ltd.,Fast Moving Consumer Goods,2674433,1238209254.9066668,233
+PRESTIGE,Prestige Estates Projects Ltd.,Realty,5197313,1225997891.8549998,234
+GESHIP,Great Eastern Shipping Co. Ltd.,Services,3526657,1205244837.888333,235
+TATACOMM,Tata Communications Ltd.,Telecommunication,952577,1202038378.0133336,236
+BELRISE,Belrise Industries Ltd.,Automobile and Auto Components,193818113,1199923865.2691665,237
+VMM,Vishal Mega Mart Ltd.,Consumer Services,7160065,1191976327.6549997,238
+EMMVEE,Emmvee Photovoltaic Power Ltd.,Capital Goods,194490369,1189380733.2433329,239
+CONCOR,Container Corporation of India Ltd.,Services,1215745,1131619651.5833333,240
+TATACAP,Tata Capital Ltd.,Financial Services,194371841,1129097400.2083333,241
+FINCABLES,Finolex Cables Ltd.,Capital Goods,265729,1127576992.5908334,242
+LGEINDIA,LG Electronics India Ltd.,Consumer Durables,194614529,1121277618.4616666,243
+JYOTICNC,Jyoti CNC Automation Ltd.,Capital Goods,5461505,1105857161.3416667,244
+INOXWIND,Inox Wind Ltd.,Capital Goods,2010113,1101541006.8951666,245
+NAM-INDIA,Nippon Life India Asset Management Ltd.,Financial Services,91393,1084839119.4466665,246
+ANANDRATHI,Anand Rathi Wealth Ltd.,Financial Services,1829121,1077690711.025,247
+OLECTRA,Olectra Greentech Ltd.,Automobile and Auto Components,2723073,1068753415.125,248
+KFINTECH,Kfin Technologies Ltd.,Financial Services,3419905,1068041401.8083333,249
+ARE&M,Amara Raja Energy & Mobility Ltd.,Automobile and Auto Components,25601,1067191040.7641667,250
+LLOYDSME,Lloyds Metals And Energy Ltd.,Metals & Mining,4432129,1065734437.9316669,251
+TRITURBINE,Triveni Turbine Ltd.,Capital Goods,6549505,1054293375.5475003,252
+TENNIND,Tenneco Clean Air India Ltd.,Automobile and Auto Components,194529281,1049176224.0558333,253
+PARADEEP,Paradeep Phosphates Ltd.,Chemicals,2493697,1045610953.5685,254
+HEG,H.E.G. Ltd.,Capital Goods,342017,1035839169.7516667,255
+TARIL,Transformers And Rectifiers (India) Ltd.,Capital Goods,3884545,1032316206.3391666,256
+PNBHOUSING,PNB Housing Finance Ltd.,Financial Services,4840449,1017702233.6899999,257
+CPPLUS,Aditya Infotech Ltd.,Capital Goods,194267649,1015104990.2833333,258
+RITES,RITES Ltd.,Construction,962817,1009243662.9816668,259
+SONATSOFTW,Sonata Software Ltd.,Information Technology,1688577,1009168196.62,260
+IRFC,Indian Railway Finance Corporation Ltd.,Financial Services,519425,1003865686.9256666,261
+UNOMINDA,UNO Minda Ltd.,Automobile and Auto Components,3623425,995090062.7783334,262
+GRANULES,Granules India Ltd.,Healthcare,3039233,980446525.3499998,263
+CGCL,Capri Global Capital Ltd.,Financial Services,5204225,975468954.6715,264
+MOTILALOFS,Motilal Oswal Financial Services Ltd.,Financial Services,3826433,972015866.4308333,265
+CAMS,Computer Age Management Services Ltd.,Financial Services,87553,969512353.74,266
+GMDCLTD,Gujarat Mineral Development Corporation Ltd.,Metals & Mining,1332225,967903269.4741666,267
+DABUR,Dabur India Ltd.,Fast Moving Consumer Goods,197633,958805033.0316666,268
+FSL,Firstsource Solutions Ltd.,Services,3661825,953711452.1711668,269
+HBLENGINE,HBL Engineering Ltd.,Capital Goods,3575297,951899449.5466666,270
+CEMPRO,Cemindia Projects Ltd.,Construction,1439233,937075964.105,271
+PIIND,PI Industries Ltd.,Chemicals,6191105,935002131.4733332,272
+ICICIPRULI,ICICI Prudential Life Insurance Company Ltd.,Financial Services,4774913,926018509.2241666,273
+RPOWER,Reliance Power Ltd.,Power,3906305,912598566.6596665,274
+OBEROIRLTY,Oberoi Realty Ltd.,Realty,5181953,908392488.7133334,275
+GODFRYPHLP,Godfrey Phillips India Ltd.,Fast Moving Consumer Goods,302337,907534861.3883334,276
+ALKEM,Alkem Laboratories Ltd.,Healthcare,2995969,904358897.3833333,277
+NUVAMA,Nuvama Wealth Management Ltd.,Financial Services,4792577,904298074.3899999,278
+SAGILITY,Sagility Ltd.,Information Technology,6925313,900418012.1061667,279
+TIINDIA,Tube Investments of India Ltd.,Automobile and Auto Components,79873,894138160.2900001,280
+SBICARD,SBI Cards and Payment Services Ltd.,Financial Services,4600577,891522387.9391665,281
+J&KBANK,Jammu & Kashmir Bank Ltd.,Financial Services,1442049,882311223.7490001,282
+COLPAL,Colgate Palmolive (India) Ltd.,Fast Moving Consumer Goods,3876097,870573462.3583333,283
+LALPATHLAB,Dr. Lal Path Labs Ltd.,Healthcare,2983425,861518512.9016668,284
+RHIM,RHI MAGNESITA INDIA LTD.,Capital Goods,7977729,858732551.5991669,285
+JAINREC,Jain Resource Recycling Ltd.,Metals & Mining,194366465,853989972.3541667,286
+KPRMILL,K.P.R. Mill Ltd.,Textiles,3817473,834454132.9333333,287
+MRF,MRF Ltd.,Automobile and Auto Components,582913,833074658.0833334,288
+GRAPHITE,Graphite India Ltd.,Capital Goods,151553,831497538.6883333,289
+ACMESOLAR,ACME Solar Holdings Ltd.,Power,6927617,829500112.9525,290
+URBANCO,Urban Company Ltd.,Consumer Services,194325505,807061364.6409999,291
+RKFORGE,Ramkrishna Forgings Ltd.,Automobile and Auto Components,2921217,806093395.3366666,292
+ENGINERSIN,Engineers India Ltd.,Construction,1256193,774142685.8628333,293
+CROMPTON,Crompton Greaves Consumer Electricals Ltd.,Consumer Durables,4376065,765220196.19,294
+FLUOROCHEM,Gujarat Fluorochemicals Ltd.,Chemicals,3520001,763939869.8783333,295
+GABRIEL,Gabriel India Ltd.,Automobile and Auto Components,277761,763716841.9866666,296
+LICHSGFIN,LIC Housing Finance Ltd.,Financial Services,511233,762377003.51,297
+POONAWALLA,Poonawalla Fincorp Ltd.,Financial Services,2919169,744260174.5308334,298
+BLUESTARCO,Blue Star Ltd.,Consumer Durables,2127617,743550242.3833333,299
+IREDA,Indian Renewable Energy Development Agency Ltd.,Financial Services,5186817,736414427.8646666,300
+BALKRISIND,Balkrishna Industries Ltd.,Automobile and Auto Components,85761,728321604.655,301
+AARTIIND,Aarti Industries Ltd.,Chemicals,1793,715812580.0741665,302
+JSWCEMENT,JSW Cement Ltd.,Construction Materials,194165761,707710257.9081669,303
+PETRONET,Petronet LNG Ltd.,Oil Gas & Consumable Fuels,2905857,703593487.3483334,304
+CHOICEIN,Choice International Ltd.,Financial Services,2269697,697344862.5616667,305
+TITAGARH,Titagarh Rail Systems Ltd.,Capital Goods,3945985,691516341.9566667,306
+IEX,Indian Energy Exchange Ltd.,Financial Services,56321,685978730.8495,307
+PIRAMALFIN,Piramal Finance Ltd.,Financial Services,194445057,684764194.87,308
+CRAFTSMAN,Craftsman Automation Ltd.,Automobile and Auto Components,730625,683274141.05,309
+NATCOPHARM,NATCO Pharma Ltd.,Healthcare,1003009,678046486.6833335,310
+SUPREMEIND,Supreme Industries Ltd.,Capital Goods,860929,675981922.8516668,311
+CUB,City Union Bank Ltd.,Financial Services,1459457,675683920.5771667,312
+NH,Narayana Hrudayalaya Ltd.,Healthcare,3031041,674391543.01,313
+DEEPAKFERT,Deepak Fertilisers & Petrochemicals Corp. Ltd.,Chemicals,211713,663643745.7083334,314
+JBMA,JBM Auto Ltd.,Automobile and Auto Components,2983681,661894631.9333333,315
+MAPMYINDIA,C.E. Info Systems Ltd.,Information Technology,1850113,658486664.91,316
+SHREECEM,Shree Cement Ltd.,Construction Materials,794369,654497488.3333334,317
+NUVOCO,Nuvoco Vistas Corporation Ltd.,Construction Materials,1389057,647567275.4533333,318
+SAREGAMA,Saregama India Ltd,Media Entertainment & Publication,1252353,647288525.5266668,319
+PCBL,PCBL Chemical Ltd.,Chemicals,678145,636142851.1483333,320
+SAILIFE,Sai Life Sciences Ltd.,Healthcare,7126785,634034787.6500001,321
+SCHNEIDER,Schneider Electric Infrastructure Ltd.,Capital Goods,7995905,627672793.8816667,322
+ECLERX,eClerx Services Ltd.,Services,3885825,627622437.6800001,323
+AWL,AWL Agri Business Ltd.,Fast Moving Consumer Goods,2076161,622554168.5356668,324
+SHYAMMETL,Shyam Metalics and Energy Ltd.,Capital Goods,1201409,619730463.0066665,325
+WELSPUNLIV,Welspun Living Ltd.,Textiles,2880769,619256525.4111667,326
+BSOFT,Birlasoft Ltd.,Information Technology,1790465,618697228.0849999,327
+BLUEJET,Blue Jet Healthcare Ltd.,Healthcare,5039617,603818929.7016666,328
+KEC,Kec International Ltd.,Construction,3394561,603450685.1424999,329
+ITCHOTELS,ITC Hotels Ltd.,Consumer Services,7488257,591553554.7306666,330
+TATACHEM,Tata Chemicals Ltd.,Chemicals,871681,587166463.1816667,331
+BEML,BEML Ltd.,Capital Goods,101121,579408186.6083333,332
+HEXT,Hexaware Technologies Ltd.,Information Technology,7594497,575915444.0883334,333
+CEATLTD,Ceat Ltd.,Automobile and Auto Components,3905025,571039685.4733334,334
+FIVESTAR,Five-Star Business Finance Ltd.,Financial Services,3080193,570345007.2091666,335
+JKTYRE,JK Tyre & Industries Ltd.,Automobile and Auto Components,3695361,568120325.8325,336
+COHANCE,Cohance Lifesciences Ltd.,Healthcare,4593921,565666962.0683334,337
+MSUMI,Motherson Sumi Wiring India Ltd.,Automobile and Auto Components,2200577,561485120.8591666,338
+SUMICHEM,Sumitomo Chemical India Ltd.,Chemicals,4378881,553750849.5933334,339
+LTTS,L&T Technology Services Ltd.,Information Technology,4752385,550256598.5133332,340
+ASTERDM,Aster DM Quality Care Ltd.,Healthcare,386049,548687258.1108333,341
+COROMANDEL,Coromandel International Ltd.,Chemicals,189185,548362854.605,342
+BAJAJHLDNG,Bajaj Holdings & Investment Ltd.,Financial Services,78081,546607957.0,343
+DEVYANI,Devyani International Ltd.,Consumer Services,1375489,539058338.4803334,344
+ANTHEM,Anthem Biosciences Ltd.,Healthcare,194018561,537612988.5366666,345
+NTPCGREEN,NTPC Green Energy Ltd.,Power,6957057,536821617.3476666,346
+MMTC,MMTC Ltd.,Services,4596993,536756066.5164999,347
+CREDITACC,CreditAccess Grameen Ltd.,Financial Services,1131777,536509281.00333333,348
+AFFLE,Affle 3i Ltd.,Information Technology,2903809,521381159.8883334,349
+JINDALSAW,Jindal Saw Ltd.,Capital Goods,774145,519466510.5088333,350
+TORNTPOWER,Torrent Power Ltd.,Power,3529217,515446151.7016667,351
+AEGISVOPAK,Aegis Vopak Terminals Ltd.,Oil Gas & Consumable Fuels,193878017,507408105.856,352
+AIAENG,AIA Engineering Ltd.,Capital Goods,3350017,506844719.0,353
+SYNGENE,Syngene International Ltd.,Healthcare,2622209,506136576.6916666,354
+ACE,Action Construction Equipment Ltd.,Capital Goods,3478273,505172254.07166666,355
+AFCONS,Afcons Infrastructure Ltd.,Construction,6650113,503926616.8775,356
+HUDCO,Housing & Urban Development Corporation Ltd.,Financial Services,5331201,490159167.42100006,357
+KIMS,Krishna Institute of Medical Sciences Ltd.,Healthcare,1240833,488179479.325,358
+HDBFS,HDB Financial Services Ltd.,Financial Services,193989633,482447832.29083335,359
+AIIL,Authum Investment & Infrastructure Ltd.,Financial Services,6029569,482290575.745,360
+IRCTC,Indian Railway Catering And Tourism Corporation Ltd.,Consumer Services,3484417,480472791.445,361
+CENTRALBK,Central Bank of India,Financial Services,3812865,476433675.59200007,362
+IPCALAB,Ipca Laboratories Ltd.,Healthcare,418049,471712501.65,363
+FIRSTCRY,Brainbees Solutions Ltd.,Consumer Services,6352385,465571136.43516654,364
+DALBHARAT,Dalmia Bharat Ltd.,Construction Materials,2067201,462440713.3299999,365
+BATAINDIA,Bata India Ltd.,Consumer Durables,94977,458916848.34583324,366
+MINDACORP,Minda Corporation Ltd.,Automobile and Auto Components,6629633,455973131.5799999,367
+DEEPAKNTR,Deepak Nitrite Ltd.,Chemicals,5105409,453753539.7900001,368
+APOLLOTYRE,Apollo Tyres Ltd.,Automobile and Auto Components,41729,452112656.0458333,369
+JWL,Jupiter Wagons Ltd.,Capital Goods,5177345,449395063.2458333,370
+GPIL,Godawari Power & Ispat Ltd.,Capital Goods,3432705,444897569.69049996,371
+FACT,Fertilisers and Chemicals Travancore Ltd.,Chemicals,258049,440680427.5200001,372
+ONESOURCE,Onesource Specialty Pharma Ltd.,Healthcare,7481345,437429414.4416667,373
+DOMS,DOMS Industries Ltd.,Fast Moving Consumer Goods,5261057,437361873.30500007,374
+PTCIL,PTC Industries Ltd.,Capital Goods,4270593,431596330.85,375
+CCL,CCL Products (I) Ltd.,Fast Moving Consumer Goods,2931713,428852396.16333336,376
+GRAVITA,Gravita India Ltd.,Metals & Mining,5256705,428187323.08833337,377
+IRB,IRB Infrastructure Developers Ltd.,Construction,3920129,425847237.0071667,378
+JMFINANCIL,JM Financial Ltd.,Financial Services,3491073,421797764.6063333,379
+ZFCVINDIA,ZF Commercial Vehicle Control Systems India Ltd.,Automobile and Auto Components,4330241,421152521.68333334,380
+JSL,Jindal Stainless Ltd.,Metals & Mining,2876417,419929090.9958333,381
+BLS,BLS International Services Ltd.,Consumer Services,4423425,416129544.9876667,382
+CYIENT,Cyient Ltd.,Information Technology,1471489,415400784.62833333,383
+ZYDUSWELL,Zydus Wellness Ltd.,Fast Moving Consumer Goods,4514561,415107853.45666677,384
+ESCORTS,Escorts Kubota Ltd.,Capital Goods,245249,415077133.04833335,385
+IGL,Indraprastha Gas Ltd.,Oil Gas & Consumable Fuels,2883073,413941634.2789999,386
+JKCEMENT,J.K. Cement Ltd.,Construction Materials,3397121,410864975.0416667,387
+GICRE,General Insurance Corporation of India,Financial Services,70913,410208626.91166663,388
+AJANTPHARM,Ajanta Pharmaceuticals Ltd.,Healthcare,2079745,409472916.4066667,389
+SAPPHIRE,Sapphire Foods India Ltd.,Consumer Services,1719809,407862595.48216665,390
+ANURAS,Anupam Rasayan India Ltd.,Chemicals,724225,407206224.84000003,391
+HONAUT,Honeywell Automation India Ltd.,Capital Goods,874753,406715018.3333333,392
+CONCORDBIO,Concord Biotech Ltd.,Healthcare,4623361,405199667.225,393
+STARHEALTH,Star Health and Allied Insurance Company Ltd.,Financial Services,1813249,404868870.2058333,394
+TBOTEK,TBO Tek Ltd.,Consumer Services,6077441,398803424.57,395
+BRIGADE,Brigade Enterprises Ltd.,Realty,3887105,398629839.44916666,396
+KPIL,Kalpataru Projects International Ltd.,Construction,464385,398456338.20666665,397
+SARDAEN,Sarda Energy and Minerals Ltd.,Metals & Mining,4546049,398193891.45916665,398
+ABSLAMC,Aditya Birla Sun Life AMC Ltd.,Financial Services,1540609,395591566.77833337,399
+LEMONTREE,Lemon Tree Hotels Ltd.,Consumer Services,667137,395382415.7148333,400
+BALRAMCHIN,Balrampur Chini Mills Ltd.,Fast Moving Consumer Goods,87297,393230226.50416666,401
+VIJAYA,Vijaya Diagnostic Centre Ltd.,Healthcare,1429761,391047826.53499997,402
+TECHNOE,Techno Electric & Engineering Company Ltd.,Construction,1649921,388568407.1449999,403
+BAJAJHFL,Bajaj Housing Finance Ltd.,Financial Services,6469121,385078186.3573333,404
+ABFRL,Aditya Birla Fashion and Retail Ltd.,Consumer Services,7707649,384322079.1071667,405
+ENDURANCE,Endurance Technologies Ltd.,Automobile and Auto Components,4818433,378051178.4716667,406
+CAPLIPOINT,Caplin Point Laboratories Ltd.,Healthcare,999937,375072429.2583333,407
+INTELLECT,Intellect Design Arena Ltd.,Information Technology,1517057,372926555.72,408
+SUNDARMFIN,Sundaram Finance Ltd.,Financial Services,854785,372673833.5083333,409
+IKS,Inventurus Knowledge Solutions Ltd.,Information Technology,7200001,367408321.11333334,410
+NSLNISP,NMDC Steel Ltd.,Metals & Mining,3630081,357417248.6235,411
+SIGNATURE,Signatureglobal (India) Ltd.,Realty,4798209,351079149.1291666,412
+ELGIEQUIP,Elgi Equipments Ltd.,Capital Goods,239873,349103111.1333334,413
+KAJARIACER,Kajaria Ceramics Ltd.,Consumer Durables,462849,338311860.32000005,414
+CHAMBLFERT,Chambal Fertilizers & Chemicals Ltd.,Chemicals,163073,333835553.6991667,415
+CLEAN,Clean Science and Technology Ltd.,Chemicals,1292545,332400366.6708333,416
+EMCURE,Emcure Pharmaceuticals Ltd.,Healthcare,6245889,329373299.1949999,417
+CASTROLIND,Castrol India Ltd.,Oil Gas & Consumable Fuels,320001,326747540.8803333,418
+ELECON,Elecon Engineering Co. Ltd.,Capital Goods,3492609,322531843.61,419
+PVRINOX,PVR INOX Ltd.,Media Entertainment & Publication,3365633,322372393.65749997,420
+MEDANTA,Global Health Ltd.,Healthcare,3060737,321786944.46333337,421
+BHARTIHEXA,Bharti Hexacom Ltd.,Telecommunication,6013185,315621541.9366666,422
+LATENTVIEW,Latent View Analytics Ltd.,Information Technology,1745409,314856287.6775,423
+USHAMART,Usha Martin Ltd.,Capital Goods,2263041,314167117.47499996,424
+JUBLINGREA,Jubilant Ingrevia Ltd.,Chemicals,712449,313913919.7666667,425
+CHOLAHLDNG,Cholamandalam Financial Holdings Ltd.,Financial Services,5565441,310421985.77500004,426
+CARBORUNIV,Carborundum Universal Ltd.,Capital Goods,152321,307871339.57750005,427
+SCHAEFFLER,Schaeffler India Ltd.,Automobile and Auto Components,258817,304643523.4933332,428
+SWANCORP,Swan Corp Ltd.,Chemicals,6936321,304067933.76166666,429
+EIDPARRY,E.I.D. Parry (India) Ltd.,Fast Moving Consumer Goods,234497,301030107.37833333,430
+BERGEPAINT,Berger Paints India Ltd.,Consumer Durables,103425,298601484.2308333,431
+POLYMED,Poly Medicure Ltd.,Healthcare,6583809,298448628.2916667,432
+ATUL,Atul Ltd.,Chemicals,67329,293229166.85,433
+GODIGIT,Go Digit General Insurance Ltd.,Financial Services,6092545,292352564.5766667,434
+ABBOTINDIA,Abbott India Ltd.,Healthcare,4583169,290523792.5,435
+ABDL,Allied Blenders and Distillers Ltd.,Fast Moving Consumer Goods,6222849,288126725.0108333,436
+MGL,Mahanagar Gas Ltd.,Oil Gas & Consumable Fuels,4488705,286742137.81,437
+CESC,CESC Ltd.,Power,160769,282798519.11050004,438
+CANHLIFE,Canara HSBC Life Insurance Company Ltd.,Financial Services,194426113,280027698.3183334,439
+APTUS,Aptus Value Housing Finance India Ltd.,Financial Services,1391361,279901583.37000006,440
+TEGA,Tega Industries Ltd.,Capital Goods,1818881,277644303.6116667,441
+NCC,NCC Ltd.,Construction,593665,268601892.5188334,442
+EMAMILTD,Emami Ltd.,Fast Moving Consumer Goods,3460353,267481879.67250004,443
+TATAINVEST,Tata Investment Corporation Ltd.,Financial Services,414977,265124155.83916667,444
+WHIRLPOOL,Whirlpool of India Ltd.,Consumer Durables,4610817,256592015.75,445
+CRISIL,CRISIL Ltd.,Financial Services,193793,255526849.07666665,446
+LTFOODS,LT Foods Ltd.,Fast Moving Consumer Goods,3536897,250770532.99000004,447
+SOBHA,Sobha Ltd.,Realty,3539457,250671806.675,448
+HOMEFIRST,Home First Finance Company India Ltd.,Financial Services,526337,250545117.61833334,449
+IGIL,International Gemological Institute Ltd.,Services,7264769,250293448.2133333,450
+GLAXO,Glaxosmithkline Pharmaceuticals Ltd.,Healthcare,295169,249818833.47,451
+ABREL,Aditya Birla Real Estate Ltd.,Realty,160001,248866850.49833336,452
+GODREJIND,Godrej Industries Ltd.,Diversified,2796801,248652522.69916666,453
+AADHARHFC,Aadhar Housing Finance Ltd.,Financial Services,6074625,245780690.92666668,454
+ACC,ACC Ltd.,Construction Materials,5633,243238613.87833336,455
+THELEELA,Leela Palaces Hotels & Resorts Ltd.,Consumer Services,193795585,230646767.75750002,456
+CANFINHOME,Can Fin Homes Ltd.,Financial Services,149249,221984866.5508333,457
+INDIAMART,Indiamart Intermesh Ltd.,Consumer Services,2745857,221808537.03000003,458
+VTL,Vardhman Textiles Ltd.,Textiles,530689,218495734.77916667,459
+LINDEINDIA,Linde India Ltd.,Chemicals,416513,218059532.64166668,460
+IRCON,IRCON International Ltd.,Construction,1276417,216630431.7005,461
+TIMKEN,Timken India Ltd.,Capital Goods,3634689,215554913.9466667,462
+UCOBANK,UCO Bank,Financial Services,2873089,211053349.2328333,463
+RAILTEL,Railtel Corporation Of India Ltd.,Telecommunication,622337,205328597.71083334,464
+RAMCOCEM,The Ramco Cements Ltd.,Construction Materials,523009,205159365.38416666,465
+SUNTV,Sun TV Network Ltd.,Media Entertainment & Publication,3431425,201724823.58416665,466
+UTIAMC,UTI Asset Management Company Ltd.,Financial Services,134913,200575276.05499995,467
+INDGN,Indegene Ltd.,Healthcare,6065409,199097591.37333333,468
+AAVAS,Aavas Financiers Ltd.,Financial Services,1378561,193909123.67666668,469
+GILLETTE,Gillette India Ltd.,Fast Moving Consumer Goods,403457,190391293.1,470
+UBL,United Breweries Ltd.,Fast Moving Consumer Goods,4278529,188250187.60666665,471
+NAVA,Nava Ltd.,Power,1027585,184478071.39499998,472
+CIEINDIA,CIE Automotive India Ltd.,Automobile and Auto Components,3823873,184285999.1966667,473
+ITI,ITI Ltd.,Telecommunication,428801,182476364.60833332,474
+3MINDIA,3M India Ltd.,Diversified,121345,174157538.0,475
+TTML,Tata Teleservices (Maharashtra) Ltd.,Telecommunication,2292225,167649880.576,476
+SJVN,SJVN Ltd.,Power,4834049,167310606.64733332,477
+TRIDENT,Trident Ltd.,Textiles,2479361,166880370.84649995,478
+PFOCUS,Prime Focus Ltd.,Media Entertainment & Publication,3454977,166743351.49183333,479
+NIVABUPA,Niva Bupa Health Insurance Company Ltd.,Financial Services,6936833,164944829.73133335,480
+BAYERCROP,Bayer Cropscience Ltd.,Chemicals,4589313,161947644.4966667,481
+RAINBOW,Rainbow Childrens Medicare Ltd.,Healthcare,2408449,150656402.64666665,482
+JUBLPHARMA,Jubilant Pharmova Ltd.,Healthcare,931073,149904751.38166666,483
+PFIZER,Pfizer Ltd.,Healthcare,676609,149335340.56833333,484
+ASAHIINDIA,Asahi India Glass Ltd.,Automobile and Auto Components,1376769,145132197.17500004,485
+IOB,Indian Overseas Bank,Financial Services,2393089,140532812.2945,486
+ERIS,Eris Lifesciences Ltd.,Healthcare,5415425,132100531.86166666,487
+BLUEDART,Blue Dart Express Ltd.,Services,126721,127544210.95666666,488
+SBFC,SBFC Finance Ltd.,Financial Services,4614657,114330936.96166664,489
+DCMSHRIRAM,DCM Shriram Ltd.,Diversified,207617,113694146.00666665,490
+CHALET,Chalet Hotels Ltd.,Consumer Services,2187777,111402510.65166667,491
+TRAVELFOOD,Travel Food Services Ltd.,Consumer Services,193931521,109059101.43333334,492
+INDIACEM,India Cements Ltd.,Construction Materials,387841,107254149.42416666,493
+SPLPETRO,Supreme Petrochem Ltd.,Chemicals,2461953,105659355.51333334,494
+GALLANTT,Gallantt Ispat Ltd.,Capital Goods,3414273,100272102.48666666,495
+BIKAJI,Bikaji Foods International Ltd.,Fast Moving Consumer Goods,3063297,99726094.71333334,496
+ABLBL,Aditya Birla Lifestyle Brands Ltd.,Consumer Services,193751809,98837957.05250001,497
+JSWDULUX,JSW Dulux Ltd.,Consumer Durables,375553,97503670.195,498
+EIHOTEL,EIH Ltd.,Consumer Services,235265,72541626.95166667,499
+BBTC,Bombay Burmah Trading Corporation Ltd.,Fast Moving Consumer Goods,97281,52779615.251666665,500

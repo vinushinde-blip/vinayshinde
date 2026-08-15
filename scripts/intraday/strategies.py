@@ -100,11 +100,18 @@ def opening_range_breakout(df: pd.DataFrame, or_bars: int = 2, stop_r: float = 1
     return pd.DataFrame(trades)
 
 
-def vwap_mean_reversion(df: pd.DataFrame, entry_z: float = 1.5, lookback_bars: int = 10) -> pd.DataFrame:
+def vwap_mean_reversion(df: pd.DataFrame, entry_z: float = 1.5, lookback_bars: int = 10,
+                         stop_z: float = 3.0) -> pd.DataFrame:
     """Intraday mean reversion to VWAP. Computes a running VWAP per day and a
     rolling std of (close - vwap). Enters when price is entry_z std below
-    VWAP (long, betting on reversion up) or above (short). Exits on
-    VWAP touch or end of day.
+    VWAP (long, betting on reversion up) or above (short). Exits on VWAP
+    touch, a hard stop, or end of day.
+
+    The stop is set at stop_z standard deviations (of the entry bar's
+    close-vs-vwap distribution) beyond the entry price. Without this, a day
+    that's genuinely trending rather than mean-reverting has no circuit
+    breaker and the fade can lose all session until the close — a hard stop
+    caps that instead of leaving the position's risk unbounded intraday.
     """
     trades = []
     for day, day_df in _day_groups(df):
@@ -119,12 +126,13 @@ def vwap_mean_reversion(df: pd.DataFrame, entry_z: float = 1.5, lookback_bars: i
 
         in_position = False
         direction = 0
-        entry_price = entry_time = None
+        entry_price = entry_time = stop = None
 
         bars = list(day_df.itertuples())
         for i in range(lookback_bars, len(bars)):
             bar = bars[i]
-            z = dev.iloc[i] / dev_std.iloc[i] if dev_std.iloc[i] and dev_std.iloc[i] > 0 else 0
+            std_i = dev_std.iloc[i]
+            z = dev.iloc[i] / std_i if std_i and std_i > 0 else 0
 
             if not in_position:
                 if z <= -entry_z:
@@ -133,24 +141,27 @@ def vwap_mean_reversion(df: pd.DataFrame, entry_z: float = 1.5, lookback_bars: i
                     direction = -1
                 else:
                     continue
-                if i + 1 >= len(bars):
-                    break
+                if i + 1 >= len(bars) or not std_i or std_i <= 0:
+                    continue
                 next_bar = bars[i + 1]
                 entry_price = next_bar.open
                 entry_time = next_bar.Index
+                stop = entry_price - stop_z * std_i if direction == 1 else entry_price + stop_z * std_i
                 in_position = True
                 continue
 
+            hit_stop = (direction == 1 and bar.low <= stop) or (direction == -1 and bar.high >= stop)
             crossed_vwap = (
                 (direction == 1 and bar.close >= vwap.iloc[i]) or
                 (direction == -1 and bar.close <= vwap.iloc[i])
             )
-            if crossed_vwap:
+            if hit_stop or crossed_vwap:
+                exit_price = stop if hit_stop else bar.close
                 trades.append({
                     "date": day, "direction": direction,
                     "entry_time": entry_time, "entry_price": entry_price,
-                    "exit_time": bar.Index, "exit_price": bar.close,
-                    "exit_reason": "vwap_touch",
+                    "exit_time": bar.Index, "exit_price": exit_price,
+                    "exit_reason": "stop" if hit_stop else "vwap_touch",
                 })
                 in_position = False
 
