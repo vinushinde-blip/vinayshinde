@@ -38,7 +38,23 @@ OUT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data", "intraday"
 
 
 def simulate(signals: pd.DataFrame, capital0: float, risk_per_trade_pct: float,
-             max_concurrent_positions: int):
+             max_concurrent_positions: int, min_stop_pct: float = 0.5, sizing: str = "fixed"):
+    """sizing: "fixed" (default) allocates equal capital per trade —
+    day_start_capital / max_concurrent_positions, leverage-capped — the
+    same implicit assumption the percentage-return research backtest
+    made (every trade counted equally in the daily average), so results
+    stay explainable against those earlier numbers. "risk" sizes by
+    risk_budget/stop_distance instead — sounds more sophisticated, but
+    empirically this strategy's stop distance (opening-range width)
+    negatively predicts outcome: trades with a naturally tight stop are
+    both sized BIGGER by this formula and more likely to get stopped out
+    by ordinary noise. Confirmed here: under "risk" sizing, stop-loss
+    exits averaged LARGER notional than winners (Rs 4.5L vs Rs 3.3L),
+    flipping an equal-weighted +CAGR to a risk-weighted -CAGR. min_stop_pct
+    (risk mode only) floors the stop distance used for sizing at this %
+    of entry price to blunt that effect, but doesn't fully fix it unless
+    set close to the strategy's typical stop width (~1-2%).
+    """
     capital = capital0
     equity_rows = []
     trade_rows = []
@@ -46,17 +62,28 @@ def simulate(signals: pd.DataFrame, capital0: float, risk_per_trade_pct: float,
     for day, day_trades in signals.groupby("date"):
         day_start_capital = capital
         max_notional_per_trade = (day_start_capital / max_concurrent_positions) * MIS_LEVERAGE
+        n_today = len(day_trades)
         day_pnl = 0.0
 
         for row in day_trades.itertuples():
-            risk_per_share = abs(row.entry_price - row.stop_price)
-            if risk_per_share <= 0:
-                continue
-
-            risk_amount = day_start_capital * risk_per_trade_pct / 100
-            qty_by_risk = risk_amount / risk_per_share
-            qty_by_leverage = max_notional_per_trade / row.entry_price
-            quantity = int(min(qty_by_risk, qty_by_leverage))
+            if sizing == "equal_weight":
+                # Replicates the research backtest's own methodology exactly:
+                # that day's return = mean of that day's trade returns, i.e.
+                # capital split evenly across however many trades actually
+                # fired that day (not a fixed per-slot amount) — this is the
+                # apples-to-apples comparison against the earlier % numbers.
+                quantity = int((day_start_capital / n_today) / row.entry_price)
+            elif sizing == "fixed":
+                quantity = int(max_notional_per_trade / row.entry_price)
+            else:
+                raw_risk_per_share = abs(row.entry_price - row.stop_price)
+                if raw_risk_per_share <= 0:
+                    continue
+                risk_per_share = max(raw_risk_per_share, row.entry_price * min_stop_pct / 100)
+                risk_amount = day_start_capital * risk_per_trade_pct / 100
+                qty_by_risk = risk_amount / risk_per_share
+                qty_by_leverage = max_notional_per_trade / row.entry_price
+                quantity = int(min(qty_by_risk, qty_by_leverage))
             if quantity <= 0:
                 continue
 
@@ -123,7 +150,14 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--capital", type=float, default=1_000_000, help="starting capital in Rs (default: 10 lacs)")
     parser.add_argument("--risk-per-trade-pct", type=float, default=0.5)
+    parser.add_argument("--min-stop-pct", type=float, default=0.5,
+                         help="floor the stop distance used for position sizing at this %% of entry price "
+                              "(default 0.5%%) — prevents an unusually tight technical stop from oversizing a trade")
     parser.add_argument("--max-concurrent-positions", type=int, default=4)
+    parser.add_argument("--sizing", choices=["fixed", "risk", "equal_weight"], default="fixed",
+                         help="position sizing method — see simulate() docstring (default: fixed). "
+                              "'equal_weight' reproduces the earlier %% backtest's own methodology exactly, "
+                              "for direct comparison")
     args = parser.parse_args()
 
     bars, rank = load_bars()
@@ -136,7 +170,8 @@ def main():
         raise SystemExit("No signals generated — nothing to simulate.")
     print(f"{len(signals)} signals across {signals['date'].nunique()} trading days.\n")
 
-    equity, trades = simulate(signals, args.capital, args.risk_per_trade_pct, args.max_concurrent_positions)
+    equity, trades = simulate(signals, args.capital, args.risk_per_trade_pct,
+                               args.max_concurrent_positions, args.min_stop_pct, args.sizing)
     summary = summarize(equity, trades, args.capital)
 
     print("=== Capital backtest summary ===")
