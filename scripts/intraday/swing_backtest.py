@@ -65,10 +65,17 @@ def load_bars_and_rank(source: str = "daily"):
     return bars, rank
 
 
-def generate_all_trades(daily_by_symbol: dict, rank: dict) -> pd.DataFrame:
+def load_nifty_daily():
+    path = os.path.join(os.path.dirname(__file__), "..", "..", "data", "daily", "NIFTY50.parquet")
+    if not os.path.exists(path):
+        raise SystemExit(f"NIFTY50 benchmark data not found at {path} — fetch it first.")
+    return pd.read_parquet(path)
+
+
+def generate_all_trades(daily_by_symbol: dict, rank: dict, nifty_daily: pd.DataFrame) -> pd.DataFrame:
     frames = []
     for symbol, daily in daily_by_symbol.items():
-        trades = find_swing_trades(daily)
+        trades = find_swing_trades(daily, nifty_daily)
         if trades.empty:
             continue
         trades.insert(0, "symbol", symbol)
@@ -221,8 +228,10 @@ def main():
     span = [d for daily in daily_by_symbol.values() for d in daily.index[[0, -1]]]
     print(f"Loaded {len(daily_by_symbol)} symbols, {args.source} source, "
           f"{min(span).date()} to {max(span).date()}.")
+    nifty_daily = load_nifty_daily()
+    print(f"NIFTY50 benchmark: {nifty_daily.index.min().date()} to {nifty_daily.index.max().date()}.")
     print("Generating swing trades across the universe...")
-    raw_trades = generate_all_trades(daily_by_symbol, rank)
+    raw_trades = generate_all_trades(daily_by_symbol, rank, nifty_daily)
     print(f"Raw trades generated (pre-cap): {len(raw_trades)}")
 
     capped = apply_portfolio_caps(raw_trades, MAX_CONCURRENT_POSITIONS, MAX_NEW_SIGNALS_PER_DAY)

@@ -1,13 +1,28 @@
 """
 The formal swing breakout strategy — entry/exit rules on daily bars,
-long-only. Builds on scanner_swing_breakout.py's detector (same 4
-conditions: breakout strength, volume vs median, rising 50-day trend, RSI
-momentum floor) but adds the pieces a scanner doesn't need: an actual
-entry price, a hard stop, a profit target, and a time-stop — i.e. a
-complete, backtestable trade definition, not just "this pattern occurred."
+long-only. Builds on scanner_swing_breakout.py's detector (breakout
+strength, volume vs median, rising 50-day trend, RSI momentum floor) but
+adds the pieces a scanner doesn't need: an actual entry price, a hard
+stop, a profit target, a time-stop, AND two market-relative conditions
+added after a 5-year backtest showed a severe regime dependency (strong
+in 2023/2024, -36% in 2022, -22% in 2025 — the strategy was buying
+breakouts in stocks that were only moving because the whole market was,
+not because they had real leadership, and got caught in every broad
+selloff):
+
+  - Relative strength vs Nifty: the stock's own trailing return over
+    `rs_lookback_days` must EXCEED Nifty's return over the same window.
+    Only trade stocks actually outperforming the index, not ones merely
+    drifting up (or down less) with it — the classic CANSLIM/Minervini
+    "relative strength leadership" filter.
+  - Market regime: Nifty itself must be above its own `regime_sma_days`
+    SMA. Sits out entirely when the broader market is in a confirmed
+    downtrend, rather than fighting it stock by stock. This is the
+    direct, targeted fix for 2022/2025 specifically.
 
 Entry: next day's open after a valid breakout day (no look-ahead — the
-breakout is only confirmed once day D's own bar is fully known).
+breakout is only confirmed once day D's own bar is fully known, and both
+new conditions use only data at/before that day too).
 
 Risk unit R = breakout day's close - breakout day's low (the same
 distance the scanner already used to define "failure").
@@ -31,10 +46,12 @@ import pandas as pd
 import indicators as ind
 
 
-def find_swing_trades(daily: pd.DataFrame, lookback_days: int = 20, vol_mult: float = 1.25,
-                       min_breakout_pct: float = 0.5, trend_days: int = 50, trend_rising_days: int = 5,
-                       rsi_min: float = 50.0, target_r_multiple: float = 3.0,
-                       max_holding_days: int = 10, max_entry_gap_pct: float = 3.0) -> pd.DataFrame:
+def find_swing_trades(daily: pd.DataFrame, nifty_daily: pd.DataFrame, lookback_days: int = 20,
+                       vol_mult: float = 1.25, min_breakout_pct: float = 0.5, trend_days: int = 50,
+                       trend_rising_days: int = 5, rsi_min: float = 50.0, target_r_multiple: float = 3.0,
+                       max_holding_days: int = 10, max_entry_gap_pct: float = 3.0,
+                       rs_lookback_days: int = 50, use_relative_strength: bool = True,
+                       use_market_regime: bool = True, regime_sma_days: int = 200) -> pd.DataFrame:
     """max_entry_gap_pct guards against a real risk-management gap found by
     testing: R is measured at the breakout bar (close - low), but entry
     happens at the NEXT day's open, which can gap up well beyond the
@@ -43,8 +60,14 @@ def find_swing_trades(daily: pd.DataFrame, lookback_days: int = 20, vol_mult: fl
     confirmed on WOCKPHARMA (2026-06-01): entry 2377 vs stop 1872 was a
     21% risk on a trade sized for ~a few percent. Skip the trade instead
     of chasing an entry that's gapped too far past the signal.
+
+    nifty_daily must span at least as far back as `daily` minus
+    regime_sma_days of warmup, or the regime condition is undefined
+    (treated as "don't trade") for early dates — fetch Nifty history well
+    before the stock backtest's own start date to avoid losing real
+    coverage to warmup.
     """
-    min_history = max(lookback_days, trend_days) + max_holding_days
+    min_history = max(lookback_days, trend_days, rs_lookback_days) + max_holding_days
     if len(daily) <= min_history:
         return pd.DataFrame()
 
@@ -59,7 +82,20 @@ def find_swing_trades(daily: pd.DataFrame, lookback_days: int = 20, vol_mult: fl
     rsi = ind.rsi(daily["close"], 14)
     rsi_condition = rsi > rsi_min
 
-    is_signal = (price_condition & volume_condition & trend_condition & rsi_condition).fillna(False)
+    is_signal = price_condition & volume_condition & trend_condition & rsi_condition
+
+    if use_relative_strength:
+        stock_return_n = daily["close"] / daily["close"].shift(rs_lookback_days) - 1
+        nifty_return_n = (nifty_daily["close"] / nifty_daily["close"].shift(rs_lookback_days) - 1).reindex(daily.index)
+        rs_condition = stock_return_n > nifty_return_n
+        is_signal = is_signal & rs_condition
+
+    if use_market_regime:
+        nifty_sma = nifty_daily["close"].rolling(regime_sma_days).mean()
+        regime_condition = (nifty_daily["close"] > nifty_sma).reindex(daily.index)
+        is_signal = is_signal & regime_condition
+
+    is_signal = is_signal.fillna(False)
 
     trades = []
     bars = list(daily.itertuples())
