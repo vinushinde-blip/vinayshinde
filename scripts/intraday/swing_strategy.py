@@ -34,7 +34,16 @@ import indicators as ind
 def find_swing_trades(daily: pd.DataFrame, lookback_days: int = 20, vol_mult: float = 1.25,
                        min_breakout_pct: float = 0.5, trend_days: int = 50, trend_rising_days: int = 5,
                        rsi_min: float = 50.0, target_r_multiple: float = 3.0,
-                       max_holding_days: int = 10) -> pd.DataFrame:
+                       max_holding_days: int = 10, max_entry_gap_pct: float = 3.0) -> pd.DataFrame:
+    """max_entry_gap_pct guards against a real risk-management gap found by
+    testing: R is measured at the breakout bar (close - low), but entry
+    happens at the NEXT day's open, which can gap up well beyond the
+    breakout close overnight. The stop (breakout low) doesn't move, so a
+    big gap silently balloons the realized risk past the intended R —
+    confirmed on WOCKPHARMA (2026-06-01): entry 2377 vs stop 1872 was a
+    21% risk on a trade sized for ~a few percent. Skip the trade instead
+    of chasing an entry that's gapped too far past the signal.
+    """
     min_history = max(lookback_days, trend_days) + max_holding_days
     if len(daily) <= min_history:
         return pd.DataFrame()
@@ -71,6 +80,9 @@ def find_swing_trades(daily: pd.DataFrame, lookback_days: int = 20, vol_mult: fl
 
         entry_idx = breakout_idx + 1
         entry_price = bars[entry_idx].open
+        if entry_price > breakout_close * (1 + max_entry_gap_pct / 100):
+            i = breakout_idx + 1
+            continue
         entry_date = bars[entry_idx].Index
         stop_price = breakout_low
         target_price = entry_price + target_r_multiple * r
