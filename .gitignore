@@ -34,3 +34,8 @@ data/intraday/swing_pullback_equity_curve.csv
 
 # Raw fetched daily bars — large and regenerable from Kite, same as intraday bars
 data/daily/bars/
+
+# swing_move_study.py's full per-day feature dataset — 100MB+, regenerable
+# from data/daily/bars/; the small effect-size summary CSVs are the actual
+# repo record, kept
+data/daily/swing_move_study_dataset.parquet
