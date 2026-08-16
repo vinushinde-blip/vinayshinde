@@ -38,6 +38,11 @@ import triggers_filters as tf
 from combo_engine import generate_trades
 from engine import apply_costs, portfolio_daily_returns
 from metrics import performance_metrics
+from trade_caps import apply_concurrency_cap, risk_based_daily_cap
+
+MAX_CONCURRENT_POSITIONS = 4
+MAX_TRADES_PER_SYMBOL_PER_DAY = 1
+MAX_TRADES_PER_DAY = risk_based_daily_cap(capital=1.0)  # 3% / 0.5% = 6, same reasoning as run_backtest.py
 
 BARS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data", "intraday", "bars")
 UNIVERSE_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "data", "intraday", "universe_top500.csv")
@@ -107,6 +112,15 @@ def evaluate_combo(trigger_name, filter_names, stop_mult, target_mult, bars, ran
         r = rank.get(symbol, universe_size)
         trades = apply_costs(trades, liquidity_rank=r, universe_size=universe_size)
         all_trades[symbol] = trades
+
+    # Optimize for what's actually TRADABLE, not raw signal quality — same
+    # concurrency-cap logic as run_backtest.py's final run (capital frees up
+    # when a position closes, not once/day; most liquid names win contested
+    # slots). Without this, the search could "win" with a combo firing
+    # hundreds of signals/day that nobody could execute, same failure mode
+    # the hand-picked strategies had before capping.
+    all_trades = apply_concurrency_cap(all_trades, MAX_CONCURRENT_POSITIONS,
+                                        MAX_TRADES_PER_DAY, MAX_TRADES_PER_SYMBOL_PER_DAY, rank=rank)
 
     daily = portfolio_daily_returns(all_trades)
     n_trades = sum(len(t) for t in all_trades.values())
