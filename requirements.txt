@@ -4,3 +4,4 @@ yfinance
 openpyxl
 requests
 matplotlib
+kiteconnect  # only needed for scripts/pattern_scanner.py --data-source kite

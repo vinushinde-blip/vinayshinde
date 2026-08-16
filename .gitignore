@@ -1,2 +1,6 @@
 __pycache__/
 *.pyc
+
+# Kite Connect: daily access token and instrument dump, never commit credentials
+.kite_session.json
+data/kite_instruments_NSE.csv

@@ -332,26 +332,29 @@ def detect_pattern(symbol: str, company: str, df: pd.DataFrame, cfg: ScanConfig)
 
 
 def load_symbols(path: str, limit: Optional[int] = None) -> list[tuple[str, str]]:
+    """Returns (nse_symbol, company) pairs, nse_symbol WITHOUT any ".NS" suffix -
+    each data source below maps that to whatever format it needs."""
     df = pd.read_csv(path)
     df.columns = [c.strip() for c in df.columns]
     if "YF_Symbol" in df.columns:
-        symbols = list(zip(df["YF_Symbol"], df.get("Company Name", df["YF_Symbol"])))
+        nse_syms = df["YF_Symbol"].str.replace(".NS", "", regex=False)
+        symbols = list(zip(nse_syms, df.get("Company Name", nse_syms)))
     elif "Symbol" in df.columns:
-        yf_syms = df["Symbol"].str.strip() + ".NS"
-        symbols = list(zip(yf_syms, df.get("Company Name", df["Symbol"])))
+        nse_syms = df["Symbol"].str.strip().str.replace(".NS", "", regex=False)
+        symbols = list(zip(nse_syms, df.get("Company Name", nse_syms)))
     else:
         # single unlabeled column of tickers
         col = df.columns[0]
-        symbols = [(f"{s}.NS" if not str(s).endswith(".NS") else str(s), s) for s in df[col]]
+        symbols = [(str(s).replace(".NS", ""), s) for s in df[col]]
     if limit:
         symbols = symbols[:limit]
     return symbols
 
 
-def download_history(symbol: str, period: str) -> Optional[pd.DataFrame]:
+def _download_history_yfinance(nse_symbol: str, period: str) -> Optional[pd.DataFrame]:
     import yfinance as yf
 
-    df = yf.download(symbol, period=period, interval="1d", auto_adjust=False, progress=False)
+    df = yf.download(f"{nse_symbol}.NS", period=period, interval="1d", auto_adjust=False, progress=False)
     if df is None or df.empty:
         return None
     if isinstance(df.columns, pd.MultiIndex):
@@ -359,15 +362,26 @@ def download_history(symbol: str, period: str) -> Optional[pd.DataFrame]:
     return df[["Open", "High", "Low", "Close", "Volume"]]
 
 
-def scan_symbol(symbol: str, company: str, cfg: ScanConfig) -> Optional[PatternMatch]:
+def download_history(nse_symbol: str, period: str, source: str = "yfinance") -> Optional[pd.DataFrame]:
+    if source == "yfinance":
+        return _download_history_yfinance(nse_symbol, period)
+    if source == "kite":
+        import kite_data_provider
+
+        return kite_data_provider.download_history(nse_symbol, period)
+    raise ValueError(f"unknown data source: {source}")
+
+
+def scan_symbol(nse_symbol: str, company: str, cfg: ScanConfig, source: str) -> Optional[PatternMatch]:
+    display_symbol = f"{nse_symbol}.NS"
     try:
-        raw = download_history(symbol, cfg.history_period)
+        raw = download_history(nse_symbol, cfg.history_period, source)
         if raw is None:
             return None
         df = compute_indicators(raw)
-        return detect_pattern(symbol, company, df, cfg)
+        return detect_pattern(display_symbol, company, df, cfg)
     except Exception as exc:  # noqa: BLE001 - keep scanning the rest of the universe
-        print(f"  [warn] {symbol}: {exc}", file=sys.stderr)
+        print(f"  [warn] {display_symbol}: {exc}", file=sys.stderr)
         return None
 
 
@@ -411,20 +425,20 @@ def save_chart(symbol: str, df: pd.DataFrame, match: PatternMatch, out_dir: str)
 
 def run_scan(args: argparse.Namespace) -> pd.DataFrame:
     cfg = ScanConfig()
+    source = args.data_source
 
     if args.symbols:
-        symbols = [(f"{s.strip()}.NS", s.strip()) for s in args.symbols.split(",") if s.strip()]
+        symbols = [(s.strip(), s.strip()) for s in args.symbols.split(",") if s.strip()]
     else:
         symbols = load_symbols(args.symbols_file, args.limit)
 
-    print(f"Scanning {len(symbols)} symbols...")
+    print(f"Scanning {len(symbols)} symbols via {source}...")
     matches: list[PatternMatch] = []
-    raw_cache: dict[str, pd.DataFrame] = {}
 
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
         futures = {}
         for symbol, company in symbols:
-            futures[pool.submit(scan_symbol, symbol, company, cfg)] = (symbol, company)
+            futures[pool.submit(scan_symbol, symbol, company, cfg, source)] = (symbol, company)
 
         done = 0
         for fut in as_completed(futures):
@@ -435,7 +449,7 @@ def run_scan(args: argparse.Namespace) -> pd.DataFrame:
             result = fut.result()
             if result is not None:
                 matches.append(result)
-                print(f"  MATCH: {symbol}  score={result.score}  pullback={result.pullback_pct}%")
+                print(f"  MATCH: {result.symbol}  score={result.score}  pullback={result.pullback_pct}%")
 
     if not matches:
         print("No matches found.")
@@ -452,7 +466,8 @@ def run_scan(args: argparse.Namespace) -> pd.DataFrame:
         print(f"Rendering charts to {args.charts_dir} ...")
         for m in matches:
             try:
-                raw = download_history(m.symbol, cfg.history_period)
+                nse_symbol = m.symbol.replace(".NS", "")
+                raw = download_history(nse_symbol, cfg.history_period, source)
                 df = compute_indicators(raw)
                 save_chart(m.symbol, df, m, args.charts_dir)
             except Exception as exc:  # noqa: BLE001
@@ -471,7 +486,12 @@ def main() -> None:
     parser.add_argument("--output", default="data/pattern_scan_results.csv")
     parser.add_argument("--charts", action="store_true", help="Save an annotated PNG chart per match")
     parser.add_argument("--charts-dir", default="data/charts")
-    parser.add_argument("--workers", type=int, default=8)
+    parser.add_argument("--workers", type=int, default=8,
+                         help="Concurrent downloads. With --data-source kite, a shared rate limiter keeps "
+                              "requests under Kite's API limit regardless of this value.")
+    parser.add_argument("--data-source", choices=["yfinance", "kite"], default="yfinance",
+                         help="yfinance (default, free, no setup) or kite (Zerodha Kite Connect - requires "
+                              "KITE_API_KEY/KITE_ACCESS_TOKEN, see scripts/kite_auth.py)")
     args = parser.parse_args()
 
     run_scan(args)
