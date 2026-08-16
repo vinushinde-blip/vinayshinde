@@ -41,9 +41,17 @@ measured "clean move" over).
 
 Returns the same trade schema as the other swing strategies in this
 project so it plugs into swing_backtest.py's cost/cap/metrics machinery
-unchanged.
+unchanged, PLUS a "score" column — how extreme this stock's own setup is
+relative to its own trailing history (self-relative z-score composite,
+not a true cross-sectional rank across the universe, since that would
+need a per-day-across-symbols pass rather than this per-symbol one; a
+time-series z-score is a reasonable proxy for "how unusual is this for
+THIS stock" and is what swing_reversion_ranked_backtest.py uses to pick
+only the most extreme few candidates each day instead of trading every
+setup that crosses the loose threshold gate).
 """
 
+import numpy as np
 import pandas as pd
 
 from indicators import rsi, atr, sma
@@ -68,6 +76,17 @@ def find_reversion_trades(daily: pd.DataFrame, nifty_daily: pd.DataFrame, rsi_ma
     atr_pct = atr(daily, 14) / close
     atr_pct_median = atr_pct.rolling(atr_lookback_days).median()
     stop_ref = low.rolling(stop_lookback_days).min()
+    higher_low_count = (low > low.shift(1)).rolling(10).sum()
+
+    def zscore(s: pd.Series, window: int = 252) -> pd.Series:
+        mean = s.rolling(window, min_periods=60).mean()
+        std = s.rolling(window, min_periods=60).std()
+        return (s - mean) / std.replace(0, np.nan)
+
+    # composite: how extreme is THIS setup for THIS stock, vs its own history
+    # (sign-flipped so higher score = more extreme reversion setup)
+    score = (-zscore(rsi14) - zscore(close / sma_pb - 1) - zscore(dist_from_high)
+             + zscore(atr_pct) - zscore(higher_low_count)) / 5.0
 
     is_signal = (rsi14 <= rsi_max) & (close <= sma_pb) & \
                 (dist_from_high <= -min_pullback_pct) & (atr_pct >= atr_pct_median)
@@ -129,12 +148,14 @@ def find_reversion_trades(daily: pd.DataFrame, nifty_daily: pd.DataFrame, rsi_ma
             last_bar = bars[window_end]
             exit_price, exit_date, exit_reason = last_bar.close, last_bar.Index, "time_stop"
 
+        signal_score = score.iloc[signal_idx]
         trades.append({
             "breakout_date": signal_date, "entry_date": entry_date,
             "entry_price": round(entry_price, 2), "stop_price": round(stop_price, 2),
             "target_price": round(target_price, 2), "exit_date": exit_date,
             "exit_price": round(exit_price, 2), "exit_reason": exit_reason,
             "gross_return": (exit_price - entry_price) / entry_price,
+            "score": float(signal_score) if pd.notna(signal_score) else 0.0,
         })
         i = daily.index.get_loc(exit_date) + 1
 

@@ -39,3 +39,8 @@ data/daily/bars/
 # from data/daily/bars/; the small effect-size summary CSVs are the actual
 # repo record, kept
 data/daily/swing_move_study_dataset.parquet
+data/daily/swing_regime_study_dataset.parquet
+
+# swing_reversion_ranked_backtest.py's output — regenerable, overwritten on every run
+data/intraday/swing_reversion_ranked_trades.csv
+data/intraday/swing_reversion_ranked_equity_curve.csv
