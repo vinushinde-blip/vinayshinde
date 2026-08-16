@@ -37,7 +37,8 @@ from scanner_swing_breakout import to_daily
 from swing_strategy import find_swing_trades
 from swing_costs import round_trip_cost_pct, slippage_bps
 
-BARS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data", "intraday", "bars")
+INTRADAY_BARS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data", "intraday", "bars")
+DAILY_BARS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data", "daily", "bars")
 UNIVERSE_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "data", "intraday", "universe_top500.csv")
 OUT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data", "intraday")
 
@@ -46,13 +47,21 @@ MAX_NEW_SIGNALS_PER_DAY = 3
 TRADING_DAYS = 252
 
 
-def load_bars_and_rank():
+def load_bars_and_rank(source: str = "daily"):
+    """source="daily": genuine daily bars from kite_fetch_daily.py (years of
+    history, one row per trading day). source="intraday": daily bars
+    DERIVED from the 5-minute intraday cache (only as many days as that
+    cache covers — a few months at most) — kept for comparison against the
+    earlier short-window backtest, not for real multi-year testing.
+    """
     universe = pd.read_csv(UNIVERSE_FILE)
     rank = dict(zip(universe["tradingsymbol"], universe["liquidity_rank"]))
+    bars_dir = DAILY_BARS_DIR if source == "daily" else INTRADAY_BARS_DIR
     bars = {}
-    for path in sorted(glob.glob(os.path.join(BARS_DIR, "*.parquet"))):
+    for path in sorted(glob.glob(os.path.join(bars_dir, "*.parquet"))):
         symbol = os.path.splitext(os.path.basename(path))[0]
-        bars[symbol] = pd.read_parquet(path)
+        df = pd.read_parquet(path)
+        bars[symbol] = df if source == "daily" else to_daily(df)
     return bars, rank
 
 
@@ -200,15 +209,19 @@ def simulate_capital(daily_returns: pd.Series, trades: pd.DataFrame, capital0: f
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--capital", type=float, default=1_000_000)
+    parser.add_argument("--source", choices=["daily", "intraday"], default="daily",
+                         help="'daily': genuine multi-year daily bars from kite_fetch_daily.py (default). "
+                              "'intraday': daily bars derived from the 5-minute cache, only a few months.")
     args = parser.parse_args()
 
-    bars, rank = load_bars_and_rank()
-    if not bars:
-        raise SystemExit("No bar data found.")
+    daily_by_symbol, rank = load_bars_and_rank(args.source)
+    if not daily_by_symbol:
+        raise SystemExit(f"No {args.source} bar data found. Run kite_fetch_{args.source}.py first.")
     universe_size = len(rank)
-
-    print("Converting to daily bars and generating swing trades across the universe...")
-    daily_by_symbol = {sym: to_daily(df) for sym, df in bars.items()}
+    span = [d for daily in daily_by_symbol.values() for d in daily.index[[0, -1]]]
+    print(f"Loaded {len(daily_by_symbol)} symbols, {args.source} source, "
+          f"{min(span).date()} to {max(span).date()}.")
+    print("Generating swing trades across the universe...")
     raw_trades = generate_all_trades(daily_by_symbol, rank)
     print(f"Raw trades generated (pre-cap): {len(raw_trades)}")
 
@@ -257,10 +270,11 @@ def main():
     print(f"Max drawdown: {dd.min()*100:.2f}% (Rs {(equity['capital']-running_max).min():,.0f})")
 
     os.makedirs(OUT_DIR, exist_ok=True)
-    costed.to_csv(os.path.join(OUT_DIR, "swing_strategy_trades.csv"), index=False)
-    equity.to_csv(os.path.join(OUT_DIR, "swing_capital_equity_curve.csv"), index=False)
-    trade_log.to_csv(os.path.join(OUT_DIR, "swing_capital_trade_log.csv"), index=False)
-    print(f"\nSaved: {OUT_DIR}/swing_strategy_trades.csv, swing_capital_equity_curve.csv, swing_capital_trade_log.csv")
+    suffix = f"_{args.source}"
+    costed.to_csv(os.path.join(OUT_DIR, f"swing_strategy_trades{suffix}.csv"), index=False)
+    equity.to_csv(os.path.join(OUT_DIR, f"swing_capital_equity_curve{suffix}.csv"), index=False)
+    trade_log.to_csv(os.path.join(OUT_DIR, f"swing_capital_trade_log{suffix}.csv"), index=False)
+    print(f"\nSaved: {OUT_DIR}/swing_*{suffix}.csv")
 
 
 if __name__ == "__main__":
