@@ -39,6 +39,7 @@ import pandas as pd
 
 BARS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data", "intraday", "bars")
 UNIVERSE_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "data", "intraday", "universe_top500.csv")
+OUT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data", "intraday", "scans")
 
 
 def to_daily(df: pd.DataFrame) -> pd.DataFrame:
@@ -165,6 +166,11 @@ def main():
         print(pending.drop(columns=["failure_date", "days_to_fail"]).head(30).to_string(index=False))
     else:
         print("(none)")
+
+    os.makedirs(OUT_DIR, exist_ok=True)
+    out_path = os.path.join(OUT_DIR, "swing_breakout_all_signals.csv")
+    combined.sort_values(["symbol", "breakout_date"]).to_csv(out_path, index=False)
+    print(f"\nSaved: {out_path} ({len(combined)} breakout events, full history, all outcomes)")
 
 
 if __name__ == "__main__":

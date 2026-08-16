@@ -34,6 +34,7 @@ from strategies import momentum_volume_breakout
 
 BARS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data", "intraday", "bars")
 UNIVERSE_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "data", "intraday", "universe_top500.csv")
+OUT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data", "intraday", "scans")
 
 
 def load_bars_and_rank():
@@ -98,7 +99,7 @@ def main():
     target_date = pd.Timestamp(args.date).date() if args.date else all_dates[-1]
     as_of = pd.Timestamp(f"{target_date} {args.as_of}") if args.as_of else None
 
-    breakouts, coiling = [], []
+    breakouts, all_day_signals, coiling = [], [], []
     for symbol, df in bars.items():
         day_df = df[df.index.date == target_date]
         if as_of is not None:
@@ -112,6 +113,18 @@ def main():
                 "symbol": symbol, "liquidity_rank": rank.get(symbol),
                 "direction": "long" if row.direction == 1 else "short",
                 "entry_time": row.entry_time, "entry_price": round(row.entry_price, 2),
+            })
+
+        # every signal the detector fired today, not just the recent-bars window —
+        # the full dataset for the day, for export
+        day_trades = momentum_volume_breakout(day_df)
+        for row in day_trades.itertuples():
+            all_day_signals.append({
+                "symbol": symbol, "liquidity_rank": rank.get(symbol),
+                "direction": "long" if row.direction == 1 else "short",
+                "entry_time": row.entry_time, "entry_price": round(row.entry_price, 2),
+                "exit_time": row.exit_time, "exit_price": round(row.exit_price, 2),
+                "exit_reason": row.exit_reason,
             })
 
         coil = find_coiling(day_df)
@@ -136,6 +149,14 @@ def main():
         print(df_out[cols].to_string(index=False))
     else:
         print("(none)")
+
+    os.makedirs(OUT_DIR, exist_ok=True)
+    signals_path = os.path.join(OUT_DIR, f"intraday_breakout_signals_{target_date}.csv")
+    coiling_path = os.path.join(OUT_DIR, f"intraday_coiling_{target_date}.csv")
+    pd.DataFrame(all_day_signals).sort_values(["symbol", "entry_time"]).to_csv(signals_path, index=False)
+    pd.DataFrame(coiling).sort_values("liquidity_rank").to_csv(coiling_path, index=False)
+    print(f"\nSaved: {signals_path} ({len(all_day_signals)} signals, full day)")
+    print(f"Saved: {coiling_path} ({len(coiling)} candidates)")
 
 
 if __name__ == "__main__":
