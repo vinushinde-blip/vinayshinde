@@ -15,3 +15,7 @@ data/intraday/backtest_results.csv
 
 # generate_signals.py's daily output — regenerated each trading day, not a repo record
 data/intraday/signals/
+
+# capital_backtest.py's output — regenerable, overwritten on every run
+data/intraday/capital_equity_curve.csv
+data/intraday/capital_trade_log.csv
