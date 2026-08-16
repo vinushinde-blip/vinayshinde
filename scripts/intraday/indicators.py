@@ -104,3 +104,22 @@ def intraday_vwap(df: pd.DataFrame) -> pd.Series:
         cum_vol = vol.cumsum().replace(0, np.nan)
         out.loc[day_df.index] = (tp * vol).cumsum() / cum_vol
     return out.ffill()
+
+
+def anchored_vwap(df: pd.DataFrame, anchor_date) -> pd.Series:
+    """VWAP accumulated from `anchor_date` onward using DAILY typical price
+    (H+L+C)/3 weighted by daily volume — a daily-bar approximation of
+    intraday VWAP, since true intraday VWAP needs intraday data this
+    multi-year daily backtest doesn't have. Used as a swing-trade support/
+    trailing-stop reference (a well-regarded technique — Brian Shannon's
+    anchored VWAP approach — normally computed intraday-anchored, here
+    daily-anchored to fit the data available). Only rows at/after
+    anchor_date get a value; earlier rows are NaN.
+    """
+    typical = (df["high"] + df["low"] + df["close"]) / 3
+    mask = df.index >= anchor_date
+    vol = df["volume"].where(mask, 0.0)
+    tp_vol = (typical * df["volume"]).where(mask, 0.0)
+    cum_vol = vol.cumsum().replace(0, np.nan)
+    result = tp_vol.cumsum() / cum_vol
+    return result.where(mask)

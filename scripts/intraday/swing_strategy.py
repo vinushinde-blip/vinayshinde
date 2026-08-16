@@ -1,44 +1,63 @@
 """
 The formal swing breakout strategy — entry/exit rules on daily bars,
 long-only. Builds on scanner_swing_breakout.py's detector (breakout
-strength, volume vs median, rising 50-day trend, RSI momentum floor) but
-adds the pieces a scanner doesn't need: an actual entry price, a hard
-stop, a profit target, a time-stop, AND two market-relative conditions
-added after a 5-year backtest showed a severe regime dependency (strong
-in 2023/2024, -36% in 2022, -22% in 2025 — the strategy was buying
-breakouts in stocks that were only moving because the whole market was,
-not because they had real leadership, and got caught in every broad
-selloff):
+strength, volume vs median, rising 50-day trend, RSI momentum floor),
+plus relative strength vs Nifty and a market regime filter added after a
+5-year backtest showed severe regime dependency (strong in 2023/2024,
+-36% in 2022, -22% in 2025).
 
-  - Relative strength vs Nifty: the stock's own trailing return over
-    `rs_lookback_days` must EXCEED Nifty's return over the same window.
-    Only trade stocks actually outperforming the index, not ones merely
-    drifting up (or down less) with it — the classic CANSLIM/Minervini
-    "relative strength leadership" filter.
-  - Market regime: Nifty itself must be above its own `regime_sma_days`
-    SMA. Sits out entirely when the broader market is in a confirmed
-    downtrend, rather than fighting it stock by stock. This is the
-    direct, targeted fix for 2022/2025 specifically.
+Every condition below is an independently toggleable parameter — this
+file does NOT bundle them into one fixed "best" strategy. The point is to
+test each addition's actual effect on the 5-year backtest in isolation
+(see swing_indicator_tests.py) rather than assume more indicators = better;
+the intraday side of this project already found that a broad, untested
+combination search produces a train-set winner that collapses out of
+sample. Every condition here is individually reasoned and tested, not
+picked by a grid search.
 
-Entry: next day's open after a valid breakout day (no look-ahead — the
-breakout is only confirmed once day D's own bar is fully known, and both
-new conditions use only data at/before that day too).
+Conditions:
+  - Breakout: close > prior lookback_days-day high by min_breakout_pct,
+    on volume >= vol_mult x lookback_days-day MEDIAN volume.
+  - Trend: close above a rising trend_days-day SMA.
+  - RSI momentum floor: RSI(14) > rsi_min.
+  - Relative strength (use_relative_strength): stock's trailing
+    rs_lookback_days return > Nifty's return over the same window —
+    only trade actual index-beating leadership, not stocks merely
+    drifting with the market.
+  - Market regime (use_market_regime): Nifty above its own
+    regime_sma_days SMA, required to hold for regime_confirm_days
+    CONSECUTIVE days before re-enabling entries — the consecutive-day
+    requirement specifically targets the whipsaw problem found in 2022,
+    where a single-day SMA crossover let entries back in during brief
+    rallies inside a choppy, not-cleanly-trending decline.
+  - ADX trend strength (use_adx_filter): the STOCK's own ADX(14) above
+    adx_threshold at breakout — a second, independent measure of
+    directional conviction beyond the SMA-slope trend check.
+  - MACD confirmation (use_macd_filter): MACD line above its signal line
+    at breakout — standard momentum confirmation.
+  - Volatility ceiling (use_volatility_filter): ATR(14) as a %% of price
+    below max_atr_pct — excludes stocks erratic enough to be prone to
+    whipsawing through both the stop and target on noise alone.
+  - Anchored VWAP exit (use_vwap_exit): once vwap_grace_days have passed,
+    exit if close falls below the VWAP accumulated from the breakout day
+    forward — a dynamic, trend-following stop tighter than waiting for
+    the fixed stop-loss or the time-stop, on the logic that a genuine
+    breakout should hold above the volume-weighted average price paid
+    since it started.
 
-Risk unit R = breakout day's close - breakout day's low (the same
-distance the scanner already used to define "failure").
+Entry: next day's open after a valid breakout day (no look-ahead — every
+condition uses only data at/before the breakout day).
+
+Risk unit R = breakout day's close - breakout day's low.
 
 Exit, checked in priority order each subsequent day:
-  1. Stop-loss: breakout day's low. If the day's low breaches it, exit at
-     the stop price — unless the day opens below the stop (a gap through),
-     in which case exit at that day's open instead (can't fill better than
-     the market opened).
-  2. Target: entry_price + target_r_multiple * R. If the day's high
-     reaches it, exit at the target price.
-  3. Time-stop: if neither triggers within max_holding_days trading days,
-     exit at that day's close.
+  1. Stop-loss: breakout day's low (gap-through handled: exits at that
+     day's open instead if it opens below the stop).
+  2. Anchored VWAP break (if use_vwap_exit and past the grace period).
+  3. Target: entry_price + target_r_multiple * R.
+  4. Time-stop: max_holding_days trading days with neither triggered.
 
-No costs applied here — that's swing_backtest.py's job (swing_costs.py +
-the concurrency/daily caps from scanner_swing_breakout.py).
+No costs applied here — that's swing_backtest.py's job.
 """
 
 import pandas as pd
@@ -51,7 +70,11 @@ def find_swing_trades(daily: pd.DataFrame, nifty_daily: pd.DataFrame, lookback_d
                        trend_rising_days: int = 5, rsi_min: float = 50.0, target_r_multiple: float = 3.0,
                        max_holding_days: int = 10, max_entry_gap_pct: float = 3.0,
                        rs_lookback_days: int = 50, use_relative_strength: bool = True,
-                       use_market_regime: bool = True, regime_sma_days: int = 200) -> pd.DataFrame:
+                       use_market_regime: bool = True, regime_sma_days: int = 200,
+                       regime_confirm_days: int = 1, use_adx_filter: bool = False, adx_threshold: float = 20.0,
+                       use_macd_filter: bool = False, use_volatility_filter: bool = False,
+                       max_atr_pct: float = 5.0, use_vwap_exit: bool = False,
+                       vwap_grace_days: int = 3) -> pd.DataFrame:
     """max_entry_gap_pct guards against a real risk-management gap found by
     testing: R is measured at the breakout bar (close - low), but entry
     happens at the NEXT day's open, which can gap up well beyond the
@@ -61,11 +84,9 @@ def find_swing_trades(daily: pd.DataFrame, nifty_daily: pd.DataFrame, lookback_d
     21% risk on a trade sized for ~a few percent. Skip the trade instead
     of chasing an entry that's gapped too far past the signal.
 
-    nifty_daily must span at least as far back as `daily` minus
-    regime_sma_days of warmup, or the regime condition is undefined
-    (treated as "don't trade") for early dates — fetch Nifty history well
-    before the stock backtest's own start date to avoid losing real
-    coverage to warmup.
+    nifty_daily must span well before `daily`'s own start (regime_sma_days
+    + regime_confirm_days of warmup), or the regime condition is
+    undefined ("don't trade") for early dates.
     """
     min_history = max(lookback_days, trend_days, rs_lookback_days) + max_holding_days
     if len(daily) <= min_history:
@@ -92,8 +113,22 @@ def find_swing_trades(daily: pd.DataFrame, nifty_daily: pd.DataFrame, lookback_d
 
     if use_market_regime:
         nifty_sma = nifty_daily["close"].rolling(regime_sma_days).mean()
-        regime_condition = (nifty_daily["close"] > nifty_sma).reindex(daily.index)
-        is_signal = is_signal & regime_condition
+        regime_ok = (nifty_daily["close"] > nifty_sma).reindex(daily.index).fillna(False)
+        if regime_confirm_days > 1:
+            regime_ok = regime_ok.rolling(regime_confirm_days).min().astype(bool)
+        is_signal = is_signal & regime_ok
+
+    if use_adx_filter:
+        adx_series = ind.adx(daily, 14)
+        is_signal = is_signal & (adx_series > adx_threshold)
+
+    if use_macd_filter:
+        macd_line, signal_line, _ = ind.macd(daily["close"])
+        is_signal = is_signal & (macd_line > signal_line)
+
+    if use_volatility_filter:
+        atr_pct = ind.atr(daily, 14) / daily["close"] * 100
+        is_signal = is_signal & (atr_pct < max_atr_pct)
 
     is_signal = is_signal.fillna(False)
 
@@ -109,6 +144,7 @@ def find_swing_trades(daily: pd.DataFrame, nifty_daily: pd.DataFrame, lookback_d
         breakout_idx = i
         breakout_close = bars[breakout_idx].close
         breakout_low = bars[breakout_idx].low
+        breakout_date = bars[breakout_idx].Index
         r = breakout_close - breakout_low
         if r <= 0 or breakout_idx + 1 >= n:
             i += 1
@@ -123,16 +159,23 @@ def find_swing_trades(daily: pd.DataFrame, nifty_daily: pd.DataFrame, lookback_d
         stop_price = breakout_low
         target_price = entry_price + target_r_multiple * r
 
+        vwap_series = None
+        if use_vwap_exit:
+            vwap_series = ind.anchored_vwap(daily, breakout_date)
+
         exit_price, exit_date, exit_reason = None, None, None
         window_end = min(entry_idx + max_holding_days, n - 1)
         for j in range(entry_idx, window_end + 1):
             bar = bars[j]
             hit_stop = bar.low <= stop_price
             hit_target = bar.high >= target_price
+
             if hit_stop and bar.open < stop_price:
                 exit_price, exit_reason = bar.open, "stop_gap"
             elif hit_stop:
                 exit_price, exit_reason = stop_price, "stop"
+            elif use_vwap_exit and (j - entry_idx) >= vwap_grace_days and bar.close < vwap_series.loc[bar.Index]:
+                exit_price, exit_reason = bar.close, "vwap_break"
             elif hit_target:
                 exit_price, exit_reason = target_price, "target"
             if exit_price is not None:
@@ -143,7 +186,7 @@ def find_swing_trades(daily: pd.DataFrame, nifty_daily: pd.DataFrame, lookback_d
             exit_price, exit_date, exit_reason = last_bar.close, last_bar.Index, "time_stop"
 
         trades.append({
-            "breakout_date": bars[breakout_idx].Index, "entry_date": entry_date,
+            "breakout_date": breakout_date, "entry_date": entry_date,
             "entry_price": round(entry_price, 2), "stop_price": round(stop_price, 2),
             "target_price": round(target_price, 2), "exit_date": exit_date,
             "exit_price": round(exit_price, 2), "exit_reason": exit_reason,

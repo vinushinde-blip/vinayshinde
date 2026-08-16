@@ -72,10 +72,10 @@ def load_nifty_daily():
     return pd.read_parquet(path)
 
 
-def generate_all_trades(daily_by_symbol: dict, rank: dict, nifty_daily: pd.DataFrame) -> pd.DataFrame:
+def generate_all_trades(daily_by_symbol: dict, rank: dict, nifty_daily: pd.DataFrame, **strategy_kwargs) -> pd.DataFrame:
     frames = []
     for symbol, daily in daily_by_symbol.items():
-        trades = find_swing_trades(daily, nifty_daily)
+        trades = find_swing_trades(daily, nifty_daily, **strategy_kwargs)
         if trades.empty:
             continue
         trades.insert(0, "symbol", symbol)
