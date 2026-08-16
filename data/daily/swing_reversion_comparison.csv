@@ -1,0 +1,4 @@
+config,trades,win_rate,full_CAGR,full_Sharpe,full_MaxDD,train_CAGR,test_CAGR,test_Sharpe,2x_cost_CAGR,2x_cost_Sharpe
+"pure reversion (RSI+pullback+off-highs+vol, no trend guard)",3818,27.3%,-12.60%,-0.47,-78.11%,-14.42%,-8.32%,-0.34,-24.89%,-1.11
++ uptrend context (above 200SMA),1274,28.8%,-10.59%,-0.41,-80.75%,-10.22%,-11.57%,-0.41,-20.12%,-0.96
++ uptrend context + market regime,949,30.8%,-7.26%,-0.34,-77.74%,-11.86%,7.67%,0.56,-15.30%,-0.91
