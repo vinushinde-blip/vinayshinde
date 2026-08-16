@@ -28,5 +28,9 @@ data/intraday/swing_strategy_trades*.csv
 data/intraday/swing_capital_equity_curve*.csv
 data/intraday/swing_capital_trade_log*.csv
 
+# swing_pullback_backtest.py's output — regenerable, overwritten on every run
+data/intraday/swing_pullback_trades.csv
+data/intraday/swing_pullback_equity_curve.csv
+
 # Raw fetched daily bars — large and regenerable from Kite, same as intraday bars
 data/daily/bars/
