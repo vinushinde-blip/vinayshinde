@@ -37,8 +37,8 @@ def build_matching_series(seed: int = 0) -> pd.DataFrame:
 
     pre_box = 62 + rng.normal(0, 1.5, pre_box_len)
 
-    box = 65 + rng.normal(0, 1.0, box_len)
-    box = np.clip(box, 63, 68)  # keeps the box spread under ~8%
+    box = 65 + rng.normal(0, 0.7, box_len)
+    box = np.clip(box, 64, 68)  # keeps the box spread under ~6%
 
     closes = np.concatenate([history, pre_box, box])
 
@@ -49,8 +49,8 @@ def build_matching_series(seed: int = 0) -> pd.DataFrame:
     volumes = np.clip(volumes, 50_000, None)
 
     history_range = rng.uniform(2.0, 5.0, history_len)
-    pre_box_range = rng.uniform(2.0, 5.0, pre_box_len)
-    box_range = rng.uniform(1.0, 3.0, box_len)  # narrow daily ranges inside the box
+    pre_box_range = rng.uniform(4.5, 7.0, pre_box_len)  # visibly livelier right before the box
+    box_range = rng.uniform(0.8, 1.8, box_len)          # then a real contraction, not just "quiet"
     day_range_pct = np.concatenate([history_range, pre_box_range, box_range])
 
     return _make_frame(closes, volumes, day_range_pct)

@@ -48,18 +48,25 @@ class TightBaseConfig:
     history_period: str = "1y"
 
     # --- box search ---
-    box_min_len: int = 8
+    box_min_len: int = 10
     box_max_len: int = 20
-    box_search_window: int = 6        # how many recent bar-positions may serve as the box's last day
+    box_search_window: int = 3        # how many recent bar-positions may serve as the box's last day -
+                                       # kept small deliberately: a wide search window lets an absolute
+                                       # cutoff get satisfied by chance across many candidate windows,
+                                       # which is what let quiet-but-unremarkable stocks match earlier.
 
     # --- tightness (rule 1 & 2) ---
-    narrow_day_max_range_pct: float = 4.0   # a single day's (High-Low)/Close to count as "narrow"
-    narrow_day_min_frac: float = 0.70       # >= this fraction of box days must be narrow
-    box_max_spread_pct: float = 9.0         # overall (box_high-box_low)/box_high cap
+    narrow_day_max_range_pct: float = 3.0   # a single day's (High-Low)/Close to count as "narrow" (absolute cap)
+    narrow_day_min_frac: float = 0.80       # >= this fraction of box days must be narrow
+    box_max_spread_pct: float = 7.0         # overall (box_high-box_low)/box_high cap
+    range_contraction_ratio: float = 0.55   # box's avg daily range must shrink to this fraction of the
+                                             # pre-box avg daily range - the real "went quiet" signal, since
+                                             # a fixed absolute % alone just rewards stocks that are always
+                                             # quiet rather than ones that specifically contracted
 
     # --- volume contraction (rule 3) ---
     pre_box_lookback: int = 20
-    volume_contraction_ratio: float = 0.75  # box avg volume <= this fraction of the pre-box average
+    volume_contraction_ratio: float = 0.65  # box avg volume <= this fraction of the pre-box average
 
     # --- loose trend filter (rule 4) ---
     trend_filter_sma: int = 150
@@ -91,6 +98,7 @@ class TightBaseMatch:
     box_spread_pct: float
     narrow_day_frac: float
     volume_contraction_ratio: float
+    range_contraction_ratio: float
     entry_price: float
     stop_loss: float
     risk_pct: float
@@ -129,13 +137,21 @@ def find_tight_box(df: pd.DataFrame, cfg: TightBaseConfig) -> Optional[dict]:
             if box_spread_pct > cfg.box_max_spread_pct:
                 continue
 
-            pre_box_vol = df["Volume"].iloc[box_start - cfg.pre_box_lookback:box_start].mean()
+            pre_box = df.iloc[box_start - cfg.pre_box_lookback:box_start]
+            pre_box_vol = pre_box["Volume"].mean()
             if not pre_box_vol or pd.isna(pre_box_vol):
                 continue
             box_vol = box["Volume"].mean()
             vol_ratio = float(box_vol / pre_box_vol)
             if vol_ratio > cfg.volume_contraction_ratio:
                 continue
+
+            pre_box_range_pct = ((pre_box["High"] - pre_box["Low"]) / pre_box["Close"] * 100).mean()
+            if not pre_box_range_pct or pd.isna(pre_box_range_pct):
+                continue
+            range_ratio = float(day_range_pct.mean() / pre_box_range_pct)
+            if range_ratio > cfg.range_contraction_ratio:
+                continue  # didn't actually get quieter than it already was - not a real contraction
 
             candidates.append({
                 "box_start": box_start,
@@ -146,6 +162,7 @@ def find_tight_box(df: pd.DataFrame, cfg: TightBaseConfig) -> Optional[dict]:
                 "box_spread_pct": box_spread_pct,
                 "narrow_day_frac": narrow_frac,
                 "vol_ratio": vol_ratio,
+                "range_ratio": range_ratio,
             })
 
     if not candidates:
@@ -160,12 +177,14 @@ def build_score(box: dict, cfg: TightBaseConfig, status: str) -> float:
     tightness_score = max(0.0, 1 - box["box_spread_pct"] / cfg.box_max_spread_pct)
     narrow_score = box["narrow_day_frac"]
     vol_score = max(0.0, min(1.0, (cfg.volume_contraction_ratio - box["vol_ratio"]) / cfg.volume_contraction_ratio + 0.5))
+    range_score = max(0.0, min(1.0, (cfg.range_contraction_ratio - box["range_ratio"]) / cfg.range_contraction_ratio + 0.5))
     length_score = max(0.0, min(1.0, 1 - abs(box["box_len"] - 12) / 12))
-    weights = {"tightness": 0.30, "narrow": 0.25, "vol": 0.25, "length": 0.20}
+    weights = {"tightness": 0.20, "narrow": 0.15, "vol": 0.20, "range": 0.30, "length": 0.15}
     total = (
         weights["tightness"] * tightness_score
         + weights["narrow"] * narrow_score
         + weights["vol"] * vol_score
+        + weights["range"] * range_score
         + weights["length"] * length_score
     )
     if status == "BREAKOUT":
@@ -221,6 +240,7 @@ def detect_tight_base(symbol: str, company: str, df: pd.DataFrame, cfg: TightBas
         box_spread_pct=round(box["box_spread_pct"], 2),
         narrow_day_frac=round(box["narrow_day_frac"] * 100, 1),
         volume_contraction_ratio=round(box["vol_ratio"], 2),
+        range_contraction_ratio=round(box["range_ratio"], 2),
         entry_price=round(entry_price, 2),
         stop_loss=round(stop_loss, 2),
         risk_pct=round(risk_pct, 2),
