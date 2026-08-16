@@ -1,4 +1,4 @@
-name: Scan Nifty 500 Pullback Pattern
+name: Scan Nifty 500 Patterns
 
 on:
   workflow_dispatch:
@@ -27,7 +27,7 @@ jobs:
       - name: Refresh Nifty 500 constituent list
         run: python scripts/fetch_nifty500_list.py
 
-      - name: Run pattern scanner
+      - name: Run stage-2 pullback scanner
         run: |
           if [ "${{ inputs.charts }}" = "true" ]; then
             python scripts/pattern_scanner.py --charts
@@ -35,10 +35,19 @@ jobs:
             python scripts/pattern_scanner.py
           fi
 
+      - name: Run tight-base breakout scanner
+        run: |
+          if [ "${{ inputs.charts }}" = "true" ]; then
+            python scripts/tight_base_scanner.py --charts
+          else
+            python scripts/tight_base_scanner.py
+          fi
+
       - name: Commit and push results
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/nifty500_list.csv data/pattern_scan_results.csv data/charts
+          git add data/nifty500_list.csv data/pattern_scan_results.csv data/charts \
+                  data/tight_base_scan_results.csv data/tight_base_charts
           git diff --cached --quiet && echo "No changes to commit" || git commit -m "Update Nifty 500 pattern scan results"
           git push
