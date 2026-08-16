@@ -113,6 +113,7 @@ def opening_range_breakout(df: pd.DataFrame, or_bars: int = 2, stop_r: float = 1
                     "entry_time": entry_time, "entry_price": entry_price,
                     "exit_time": bar.Index, "exit_price": bar.open,
                     "exit_reason": "squareoff",
+                    "stop_price": stop,
                 })
                 in_position = False
                 continue
@@ -132,6 +133,7 @@ def opening_range_breakout(df: pd.DataFrame, or_bars: int = 2, stop_r: float = 1
                     "entry_time": entry_time, "entry_price": entry_price,
                     "exit_time": bar.Index, "exit_price": exit_price,
                     "exit_reason": "stop" if hit_stop else "target",
+                    "stop_price": stop,
                 })
                 in_position = False
 
@@ -142,6 +144,7 @@ def opening_range_breakout(df: pd.DataFrame, or_bars: int = 2, stop_r: float = 1
                 "entry_time": entry_time, "entry_price": entry_price,
                 "exit_time": last_bar.Index, "exit_price": last_bar.close,
                 "exit_reason": "eod_fallback",
+                "stop_price": stop,
             })
 
     return pd.DataFrame(trades)
@@ -216,6 +219,7 @@ def vwap_mean_reversion(df: pd.DataFrame, entry_z: float = 1.5, lookback_bars: i
                     "entry_time": entry_time, "entry_price": entry_price,
                     "exit_time": bar.Index, "exit_price": bar.open,
                     "exit_reason": "squareoff",
+                    "stop_price": stop,
                 })
                 in_position = False
                 continue
@@ -232,6 +236,7 @@ def vwap_mean_reversion(df: pd.DataFrame, entry_z: float = 1.5, lookback_bars: i
                     "entry_time": entry_time, "entry_price": entry_price,
                     "exit_time": bar.Index, "exit_price": exit_price,
                     "exit_reason": "stop" if hit_stop else "vwap_touch",
+                    "stop_price": stop,
                 })
                 in_position = False
 
@@ -242,6 +247,7 @@ def vwap_mean_reversion(df: pd.DataFrame, entry_z: float = 1.5, lookback_bars: i
                 "entry_time": entry_time, "entry_price": entry_price,
                 "exit_time": last_bar.Index, "exit_price": last_bar.close,
                 "exit_reason": "eod_fallback",
+                "stop_price": stop,
             })
 
     return pd.DataFrame(trades)
@@ -313,6 +319,7 @@ def momentum_volume_breakout(df: pd.DataFrame, or_bars: int = 4, vol_mult: float
                     "entry_time": entry_time, "entry_price": entry_price,
                     "exit_time": bar.Index, "exit_price": bar.open,
                     "exit_reason": "squareoff",
+                    "stop_price": stop,
                 })
                 in_position = False
                 continue
@@ -331,6 +338,7 @@ def momentum_volume_breakout(df: pd.DataFrame, or_bars: int = 4, vol_mult: float
                     "entry_time": entry_time, "entry_price": entry_price,
                     "exit_time": bar.Index, "exit_price": exit_price,
                     "exit_reason": "stop" if hit_stop else "target",
+                    "stop_price": stop,
                 })
                 in_position = False
 
@@ -341,6 +349,7 @@ def momentum_volume_breakout(df: pd.DataFrame, or_bars: int = 4, vol_mult: float
                 "entry_time": entry_time, "entry_price": entry_price,
                 "exit_time": last_bar.Index, "exit_price": last_bar.close,
                 "exit_reason": "eod_fallback",
+                "stop_price": stop,
             })
 
     return pd.DataFrame(trades)
@@ -393,6 +402,7 @@ def failed_breakout_short(df: pd.DataFrame, or_bars: int = 2, confirm_bars: int 
                         "entry_time": entry_time, "entry_price": entry_price,
                         "exit_time": bar.Index, "exit_price": bar.open,
                         "exit_reason": "squareoff",
+                        "stop_price": stop,
                     })
                     in_position = False
                     continue
@@ -406,6 +416,7 @@ def failed_breakout_short(df: pd.DataFrame, or_bars: int = 2, confirm_bars: int 
                         "entry_time": entry_time, "entry_price": entry_price,
                         "exit_time": bar.Index, "exit_price": exit_price,
                         "exit_reason": "stop" if hit_stop else "target",
+                        "stop_price": stop,
                     })
                     in_position = False
                     watching_poke_high = None
@@ -447,6 +458,7 @@ def failed_breakout_short(df: pd.DataFrame, or_bars: int = 2, confirm_bars: int 
                 "entry_time": entry_time, "entry_price": entry_price,
                 "exit_time": last_bar.Index, "exit_price": last_bar.close,
                 "exit_reason": "eod_fallback",
+                "stop_price": stop,
             })
 
     return pd.DataFrame(trades)
