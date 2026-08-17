@@ -1,0 +1,68 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>NSE 500 — VWAP Distance Signals</title>
+{% if status != "not_logged_in" %}
+<meta http-equiv="refresh" content="60">
+{% endif %}
+<style>
+  body { background:#0e1117; color:#e6e6e6; font-family: -apple-system, Segoe UI, Roboto, sans-serif; margin:0; padding:24px; }
+  h1 { font-size:20px; margin:0 0 4px; }
+  .sub { color:#9aa0a6; font-size:13px; margin-bottom:18px; }
+  .status { padding:12px 16px; border-radius:8px; background:#1a1f2b; margin-bottom:16px; }
+  a.btn { display:inline-block; background:#2f81f7; color:white; padding:10px 18px; border-radius:6px; text-decoration:none; font-weight:600; }
+  table { border-collapse: collapse; width:100%; font-size:13px; }
+  th, td { padding:8px 12px; text-align:right; border-bottom:1px solid #262b36; }
+  th:first-child, td:first-child { text-align:left; }
+  th { color:#9aa0a6; font-weight:600; text-transform:uppercase; font-size:11px; }
+  .zone-1 { color:#2ecc71; font-weight:700; }
+  .zone-2 { color:#e8912d; font-weight:700; }
+  .zone-3 { color:#ff4d4f; font-weight:700; }
+  .crossing { background:#2a1a1a; }
+  .badge { background:#ff4d4f; color:white; font-size:10px; padding:2px 6px; border-radius:4px; margin-left:6px; }
+  .pos { color:#2ecc71; }
+  .neg { color:#ff4d4f; }
+</style>
+</head>
+<body>
+  <h1>NSE 500 — VWAP Distance Signals</h1>
+  <div class="sub">
+    5-min candles &middot; zones from 10-day historical std-dev &middot; refreshes every 60s
+    {% if last_updated %} &middot; last updated {{ last_updated }}{% endif %}
+  </div>
+
+  {% if status == "not_logged_in" %}
+    <div class="status">Not connected to Kite yet.</div>
+    <a class="btn" href="/login">Login with Kite</a>
+
+  {% elif status == "bootstrapping" %}
+    <div class="status">Bootstrapping historical VWAP stats for NSE 500 — this takes a few minutes on first run.<br>{{ message }}</div>
+
+  {% elif status == "error" %}
+    <div class="status">Something went wrong: {{ message }}</div>
+
+  {% else %}
+    <table>
+      <tr>
+        <th>Symbol</th>
+        <th>LTP</th>
+        <th>VWAP</th>
+        <th>Distance %</th>
+        <th>Zone</th>
+        <th>10D High %</th>
+      </tr>
+      {% for r in signals %}
+      <tr class="{{ 'crossing' if r.crossing else '' }}">
+        <td>{{ r.symbol }}{% if r.crossing %}<span class="badge">CROSSING 10D HIGH</span>{% endif %}</td>
+        <td>{{ "%.2f"|format(r.ltp) }}</td>
+        <td>{{ "%.2f"|format(r.vwap) }}</td>
+        <td class="{{ 'pos' if r.dist_pct >= 0 else 'neg' }}">{{ "%+.2f"|format(r.dist_pct) }}%</td>
+        <td class="zone-{{ r.zone_code }}">{{ r.zone_label }}</td>
+        <td>{{ "%.2f"|format(r.ten_day_high) }}%</td>
+      </tr>
+      {% endfor %}
+    </table>
+  {% endif %}
+</body>
+</html>
