@@ -157,7 +157,9 @@ def filter_vwap_trend_aligned(sig):
 
 
 def filter_time_of_day(sig):
-    return NO_ENTRY_BEFORE <= sig["time"] <= ENTRY_CUTOFF
+    # Strictly before the cutoff -- the signal candle's own time passing the check
+    # isn't enough on its own, since simulated entry happens on the *next* candle.
+    return NO_ENTRY_BEFORE <= sig["time"] < ENTRY_CUTOFF
 
 
 def filter_min_threshold(sig, min_pct=0.5):
