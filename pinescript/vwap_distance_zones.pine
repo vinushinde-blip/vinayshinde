@@ -50,13 +50,16 @@ level1 = useDynamic ? stdevDist * mult1 : fixedL1
 level2 = useDynamic ? stdevDist * mult2 : fixedL2
 level3 = useDynamic ? stdevDist * mult3 : fixedL3
 
-colNormal   = color.new(color.gray, 0)
-colAway     = color.new(color.yellow, 0)
-colAbnormal = color.new(color.orange, 0)
+// Dark-theme palette: TradingView's own design-system colors, tuned to stay
+// legible against a dark chart background.
+colNormal   = color.new(color.green, 0)
+colAway     = color.new(color.orange, 0)
+colAbnormal = color.new(color.yellow, 0)
 colTooFar   = color.new(color.red, 0)
 
-zoneColor = absDist <= level1 ? colNormal : absDist <= level2 ? colAway : absDist <= level3 ? colAbnormal : colTooFar
-zoneLabel = absDist <= level1 ? "Normal / Average" : absDist <= level2 ? "Away" : absDist <= level3 ? "Abnormal Away" : "Too Far"
+zoneCode  = absDist <= level1 ? 1 : absDist <= level2 ? 2 : absDist <= level3 ? 3 : 4
+zoneColor = zoneCode == 1 ? colNormal : zoneCode == 2 ? colAway : zoneCode == 3 ? colAbnormal : colTooFar
+zoneLabel = zoneCode == 1 ? "Normal / Average" : zoneCode == 2 ? "Away" : zoneCode == 3 ? "Abnormal Away" : "Too Far"
 side      = distPct >= 0 ? "above" : "below"
 
 // ───────────────────────────── Possible-retrace marker ─────────────────────────────
@@ -69,7 +72,25 @@ plotshape(retraceSignal, title = "Possible Retrace", style = shape.labeldown,
      textcolor = color.white, size = size.tiny)
 
 // ───────────────────────────── Plots ─────────────────────────────
-plot(vwapValue, title = "VWAP", color = zoneColor, linewidth = 2)
+// The VWAP line is split into one plot per zone (only the active zone is
+// non-na on any given bar). Hovering the crosshair over the line then shows
+// the matching titled row ("VWAP — Away", etc.) in the legend / Data Window —
+// that's how the zone name surfaces on hover, since Pine can't draw a custom
+// mouse tooltip directly.
+vwapNormal   = zoneCode == 1 ? vwapValue : na
+vwapAway     = zoneCode == 2 ? vwapValue : na
+vwapAbnormal = zoneCode == 3 ? vwapValue : na
+vwapTooFar   = zoneCode == 4 ? vwapValue : na
+
+plot(vwapNormal,   title = "VWAP — Normal / Average", color = colNormal,   linewidth = 2)
+plot(vwapAway,     title = "VWAP — Away",              color = colAway,     linewidth = 2)
+plot(vwapAbnormal, title = "VWAP — Abnormal Away",     color = colAbnormal, linewidth = 2)
+plot(vwapTooFar,   title = "VWAP — Too Far",            color = colTooFar,   linewidth = 2)
+
+// Data-Window-only value: exact distance % at the hovered bar (kept off the
+// chart itself so it doesn't clutter the price pane).
+plot(distPct, title = "Distance % (hover / Data Window)", display = display.data_window)
+
 bgcolor(showBg ? color.new(zoneColor, 92) : na, title = "Zone background tint")
 
 // ───────────────────────────── Info table ─────────────────────────────
