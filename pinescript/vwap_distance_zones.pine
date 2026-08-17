@@ -1,113 +1,30 @@
 //@version=5
-// VWAP Distance % Zones
-// Works on TradingView Free plan: single-symbol, no request.security() / no higher-TF calls.
-// Shows how far price has stretched away from VWAP, in %, and buckets that stretch into
-// 4 zones (Normal / Away / Abnormal Away / Too Far) plus a "possible retrace" marker
-// for the extreme zone. Zone color is shown via the VWAP line, a chart background tint,
-// and an on-chart info table.
-indicator("VWAP Distance % Zones", shorttitle = "VWAP Dist%", overlay = true, max_labels_count = 200)
+indicator("VWAP Distance Zones", overlay = true)
 
-// ───────────────────────────── Inputs ─────────────────────────────
-grpVwap = "VWAP"
-src    = input.source(close, "Source", group = grpVwap)
-anchor = input.string("Session", "Anchor", options = ["Session", "Week", "Month"], group = grpVwap)
+src    = input.source(close, "Source")
+anchor = input.string("Session", "Anchor", options = ["Session", "Week", "Month"])
 
-grpZones   = "Zones"
-useDynamic = input.bool(true, "Auto thresholds (std-dev based)", group = grpZones,
-     tooltip = "ON: thresholds scale with this symbol's own volatility (recommended).\nOFF: use the fixed % levels below.")
-stdevLen   = input.int(100, "Std-dev lookback (bars)", minval = 20, group = grpZones)
-mult1      = input.float(1.0, "Away  = mult × std-dev", group = grpZones)
-mult2      = input.float(2.0, "Abnormal Away = mult × std-dev", group = grpZones)
-mult3      = input.float(3.0, "Too Far = mult × std-dev", group = grpZones)
+mult1 = input.float(1.0, "Away threshold (x std-dev)")
+mult2 = input.float(2.0, "Abnormal Away threshold (x std-dev)")
+mult3 = input.float(3.0, "Too Far threshold (x std-dev)")
 
-fixedL1 = input.float(0.15, "Fixed: Normal ≤ %", minval = 0.0, step = 0.01, group = grpZones)
-fixedL2 = input.float(0.35, "Fixed: Away ≤ %", minval = 0.0, step = 0.01, group = grpZones)
-fixedL3 = input.float(0.60, "Fixed: Abnormal Away ≤ % (beyond = Too Far)", minval = 0.0, step = 0.01, group = grpZones)
-
-grpDisp     = "Display"
-showTable   = input.bool(true, "Show info table", group = grpDisp)
-showBg      = input.bool(true, "Tint chart background by zone", group = grpDisp)
-showRetrace = input.bool(true, "Mark possible retrace in the extreme zone", group = grpDisp)
-
-// ───────────────────────────── VWAP (session / week / month anchor) ─────────────────────────────
 isNewPeriod = anchor == "Session" ? timeframe.change("D") : anchor == "Week" ? timeframe.change("W") : timeframe.change("M")
 
 var float cumPV  = na
 var float cumVol = na
-
 cumPV  := isNewPeriod ? src * volume : cumPV[1] + src * volume
 cumVol := isNewPeriod ? volume       : cumVol[1] + volume
-
 vwapValue = cumPV / cumVol
 
-// ───────────────────────────── Distance % and zone thresholds ─────────────────────────────
-distPct = (src - vwapValue) / vwapValue * 100
-absDist = math.abs(distPct)
+distPct   = (src - vwapValue) / vwapValue * 100
+absDist   = math.abs(distPct)
+stdevDist = ta.stdev(distPct, 100)
 
-stdevDist = ta.stdev(distPct, stdevLen)
+level1 = stdevDist * mult1
+level2 = stdevDist * mult2
+level3 = stdevDist * mult3
 
-level1 = useDynamic ? stdevDist * mult1 : fixedL1
-level2 = useDynamic ? stdevDist * mult2 : fixedL2
-level3 = useDynamic ? stdevDist * mult3 : fixedL3
+zoneColor = absDist <= level1 ? color.green : absDist <= level2 ? color.orange : absDist <= level3 ? color.yellow : color.red
 
-// Dark-theme palette: TradingView's own design-system colors, tuned to stay
-// legible against a dark chart background.
-colNormal   = color.new(color.green, 0)
-colAway     = color.new(color.orange, 0)
-colAbnormal = color.new(color.yellow, 0)
-colTooFar   = color.new(color.red, 0)
-
-zoneCode  = absDist <= level1 ? 1 : absDist <= level2 ? 2 : absDist <= level3 ? 3 : 4
-zoneColor = zoneCode == 1 ? colNormal : zoneCode == 2 ? colAway : zoneCode == 3 ? colAbnormal : colTooFar
-zoneLabel = zoneCode == 1 ? "Normal / Average" : zoneCode == 2 ? "Away" : zoneCode == 3 ? "Abnormal Away" : "Too Far"
-side      = distPct >= 0 ? "above" : "below"
-
-// ───────────────────────────── Possible-retrace marker ─────────────────────────────
-wasExtreme  = absDist[1] > level3
-pullingBack = math.abs(distPct) < math.abs(distPct[1])
-retraceSignal = showRetrace and wasExtreme and pullingBack
-
-plotshape(retraceSignal, title = "Possible Retrace", style = shape.labeldown,
-     location = location.abovebar, color = color.new(color.fuchsia, 0), text = "Retrace?",
-     textcolor = color.white, size = size.tiny)
-
-// ───────────────────────────── Plots ─────────────────────────────
-// The VWAP line is split into one plot per zone (only the active zone is
-// non-na on any given bar). Hovering the crosshair over the line then shows
-// the matching titled row ("VWAP — Away", etc.) in the legend / Data Window —
-// that's how the zone name surfaces on hover, since Pine can't draw a custom
-// mouse tooltip directly.
-vwapNormal   = zoneCode == 1 ? vwapValue : na
-vwapAway     = zoneCode == 2 ? vwapValue : na
-vwapAbnormal = zoneCode == 3 ? vwapValue : na
-vwapTooFar   = zoneCode == 4 ? vwapValue : na
-
-plot(vwapNormal,   title = "VWAP — Normal / Average", color = colNormal,   linewidth = 2)
-plot(vwapAway,     title = "VWAP — Away",              color = colAway,     linewidth = 2)
-plot(vwapAbnormal, title = "VWAP — Abnormal Away",     color = colAbnormal, linewidth = 2)
-plot(vwapTooFar,   title = "VWAP — Too Far",            color = colTooFar,   linewidth = 2)
-
-// Data-Window-only value: exact distance % at the hovered bar (kept off the
-// chart itself so it doesn't clutter the price pane).
-plot(distPct, title = "Distance % (hover / Data Window)", display = display.data_window)
-
-bgcolor(showBg ? color.new(zoneColor, 92) : na, title = "Zone background tint")
-
-// ───────────────────────────── Info table ─────────────────────────────
-var table info = table.new(position.top_right, 2, 4, border_width = 1)
-if showTable
-    table.cell(info, 0, 0, "VWAP",   text_color = color.white, bgcolor = color.new(color.black, 0))
-    table.cell(info, 1, 0, str.tostring(vwapValue, format.mintick), text_color = color.white, bgcolor = color.new(color.black, 0))
-    table.cell(info, 0, 1, "Price",  text_color = color.white, bgcolor = color.new(color.black, 0))
-    table.cell(info, 1, 1, str.tostring(src, format.mintick), text_color = color.white, bgcolor = color.new(color.black, 0))
-    table.cell(info, 0, 2, "Distance", text_color = color.white, bgcolor = color.new(color.black, 0))
-    table.cell(info, 1, 2, (distPct >= 0 ? "+" : "") + str.tostring(distPct, "#.##") + "% (" + side + ")",
-         text_color = color.white, bgcolor = color.new(color.black, 0))
-    table.cell(info, 0, 3, "Zone",   text_color = color.white, bgcolor = zoneColor)
-    table.cell(info, 1, 3, zoneLabel, text_color = color.white, bgcolor = zoneColor)
-
-// ───────────────────────────── Alerts ─────────────────────────────
-alertcondition(absDist > level3 and absDist[1] <= level3, title = "Entered Too Far zone",
-     message = "Price is now Too Far from VWAP — possible mean-reversion setup.")
-alertcondition(retraceSignal, title = "Possible retrace toward VWAP",
-     message = "Price stretched Too Far from VWAP and is now pulling back — watch for retrace.")
+plot(vwapValue, title = "VWAP", color = zoneColor, linewidth = 2)
+bgcolor(color.new(zoneColor, 90))
