@@ -1,0 +1,21 @@
+{
+  "initial_capital": 1000000.0,
+  "final_equity": 832891.69,
+  "total_return_pct": -16.71,
+  "cagr_pct": -8.77,
+  "years": 1.99,
+  "n_trades": 7602,
+  "win_rate_pct": 29.48,
+  "avg_win_rupees": 1197.48,
+  "avg_loss_rupees": -531.74,
+  "profit_factor": 0.941,
+  "max_drawdown_pct": -18.63,
+  "sharpe_annualized": -1.377,
+  "total_costs_rupees": 566269.46,
+  "signals_total": 7698,
+  "signals_skipped_concurrency_cap": 96,
+  "max_concurrent": 10,
+  "slot_fraction": 0.1,
+  "round_trip_cost_pct": 0.08,
+  "scenario": "realistic"
+}
