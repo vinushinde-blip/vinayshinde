@@ -243,16 +243,22 @@ def fetch_day_1min(kite, token, day):
     return kite.historical_data(token, start, end, "minute")
 
 
-def find_precise_entry_1min(day_candles_1m, threshold, direction):
+def find_precise_entry_1min(day_candles_1m, threshold, direction, start_time="09:15"):
     """
     Re-derives the exact crossing moment using 1-minute candles (same cumulative-VWAP
     methodology as the 5-min scan, just finer-grained), instead of waiting up to ~5
-    minutes for the next 5-min bar. Returns (series, idx) for the candle where
-    |distance%| first crosses `threshold` in the signal's direction, or (series, None)
-    if it never does on the 1-minute series (can happen right at the edges).
+    minutes for the next 5-min bar. Returns (series, idx) for the first candle at or
+    after `start_time` where |distance%| crosses `threshold` in the signal's direction,
+    or (series, None) if it never does.
+
+    `start_time` should be the corresponding 5-min signal's own bar-start time -- when
+    a symbol fires multiple 5-min-level signals in a day, searching from day-start every
+    time would collapse them all onto the same (first) crossing.
     """
     series = _intraday_series(day_candles_1m)
     for idx, s in enumerate(series):
+        if s["candle"]["date"].strftime("%H:%M") < start_time:
+            continue
         dist = s["dist_pct"]
         hit = (dist > threshold) if direction == "Upside" else (dist < -threshold)
         if hit:
