@@ -27,4 +27,3 @@ level3 = stdevDist * mult3
 zoneColor = absDist <= level1 ? color.green : absDist <= level2 ? color.orange : absDist <= level3 ? color.yellow : color.red
 
 plot(vwapValue, title = "VWAP", color = zoneColor, linewidth = 2)
-bgcolor(color.new(zoneColor, 90))
