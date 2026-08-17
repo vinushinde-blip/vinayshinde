@@ -2,6 +2,7 @@ data_cache/
 results/*.parquet
 results/*checkpoint*.json
 results/pipeline_log.txt
+results/pipeline_stdout.log
 data_cache/fetch_log.txt
 data_cache/fetch_stdout.log
 __pycache__/
