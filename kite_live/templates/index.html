@@ -49,8 +49,10 @@
         <th>LTP</th>
         <th>VWAP</th>
         <th>Distance %</th>
+        <th>Direction</th>
         <th>Zone</th>
         <th>10D High %</th>
+        <th>Time</th>
       </tr>
       {% for r in signals %}
       <tr class="{{ 'crossing' if r.crossing else '' }}">
@@ -58,8 +60,10 @@
         <td>{{ "%.2f"|format(r.ltp) }}</td>
         <td>{{ "%.2f"|format(r.vwap) }}</td>
         <td class="{{ 'pos' if r.dist_pct >= 0 else 'neg' }}">{{ "%+.2f"|format(r.dist_pct) }}%</td>
+        <td>{{ r.direction }}</td>
         <td class="zone-{{ r.zone_code }}">{{ r.zone_label }}</td>
         <td>{{ "%.2f"|format(r.ten_day_high) }}%</td>
+        <td>{{ r.timestamp or "-" }}</td>
       </tr>
       {% endfor %}
     </table>

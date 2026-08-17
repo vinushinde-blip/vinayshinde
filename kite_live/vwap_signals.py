@@ -120,9 +120,11 @@ def fetch_live_quotes(kite, instruments_map):
             q = quotes.get(f"NSE:{sym}")
             if not q or not q.get("average_price"):
                 continue
+            ts = q.get("last_trade_time") or q.get("timestamp")
             out[sym] = {
                 "last_price": q["last_price"],
                 "average_price": q["average_price"],  # Kite's own day VWAP
+                "timestamp": ts.strftime("%H:%M:%S") if ts else None,
             }
     return out
 
@@ -141,6 +143,7 @@ def build_signals(kite, instruments_map, stats):
         abs_dist = abs(dist_pct)
         zone_code, zone_label = classify_zone(abs_dist, s["level1"], s["level2"])
         crossing = abs_dist > s["ten_day_high"]
+        direction = "Upside" if dist_pct >= 0 else "Downside"
         rows.append({
             "symbol": symbol,
             "ltp": ltp,
@@ -150,6 +153,8 @@ def build_signals(kite, instruments_map, stats):
             "zone_label": zone_label,
             "ten_day_high": s["ten_day_high"],
             "crossing": crossing,
+            "direction": direction,
+            "timestamp": q["timestamp"],
         })
     # Crossing signals first, then by how extreme the distance is.
     rows.sort(key=lambda r: (not r["crossing"], -abs(r["dist_pct"])))
