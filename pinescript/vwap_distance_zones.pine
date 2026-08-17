@@ -1,13 +1,15 @@
 //@version=5
 indicator("VWAP Distance Zones", overlay = true)
 
-src    = input.source(close, "Source")
-anchor = input.string("Session", "Anchor", options = ["Session", "Week", "Month"])
+// ───────────────────────────── Inputs ─────────────────────────────
+src      = input.source(close, "Source")
+anchor   = input.string("Session", "VWAP Anchor", options = ["Session", "Week", "Month"])
+lookback = input.int(200, "Historical lookback (bars) used to build the zones", minval = 20)
+mult1    = input.float(1.0, "Average zone  ≤  x × historical std-dev")
+mult2    = input.float(2.0, "Medium zone   ≤  x × historical std-dev  (beyond = Extreme)")
 
-mult1 = input.float(1.0, "Away threshold (x std-dev)")
-mult2 = input.float(2.0, "Abnormal Away threshold (x std-dev)")
-mult3 = input.float(3.0, "Too Far threshold (x std-dev)")
-
+// ───────────────────────────── VWAP (session/week/month anchored) ─────────────────────────────
+// Free-plan compatible: single symbol only, no request.security() calls.
 isNewPeriod = anchor == "Session" ? timeframe.change("D") : anchor == "Week" ? timeframe.change("W") : timeframe.change("M")
 
 var float cumPV  = na
@@ -16,25 +18,41 @@ cumPV  := isNewPeriod ? src * volume : cumPV[1] + src * volume
 cumVol := isNewPeriod ? volume       : cumVol[1] + volume
 vwapValue = cumPV / cumVol
 
-distPct   = (src - vwapValue) / vwapValue * 100
-absDist   = math.abs(distPct)
-stdevDist = ta.stdev(distPct, 100)
+// ───────────────────────────── Current VWAP distance % ─────────────────────────────
+distPct = (src - vwapValue) / vwapValue * 100
+absDist = math.abs(distPct)
 
-level1 = stdevDist * mult1
-level2 = stdevDist * mult2
-level3 = stdevDist * mult3
+// ───────────────────────────── Historical distribution → 3 zones ─────────────────────────────
+// Std-dev of the distance% over the lookback window is the "historical" measure:
+// ~68% of past readings fall inside 1 std-dev, ~95% inside 2 std-dev, so these two
+// levels split history into Average / Medium / Extreme buckets.
+stdevDist = ta.stdev(distPct, lookback)
+level1    = stdevDist * mult1   // Average <-> Medium boundary
+level2    = stdevDist * mult2   // Medium <-> Extreme boundary
 
-zoneColor = absDist <= level1 ? color.green : absDist <= level2 ? color.orange : absDist <= level3 ? color.yellow : color.red
+zoneCode  = absDist <= level1 ? 1 : absDist <= level2 ? 2 : 3
+zoneColor = zoneCode == 1 ? color.green : zoneCode == 2 ? color.orange : color.red
+zoneLabel = zoneCode == 1 ? "Average" : zoneCode == 2 ? "Medium" : "Extreme"
 
-plot(vwapValue, title = "VWAP", color = zoneColor, linewidth = 2)
+// ───────────────────────────── Plot: single line, colored by zone ─────────────────────────────
+// Split into 3 plots (one per zone, only the active one is non-na per bar) so that
+// hovering the crosshair shows the matching titled row ("VWAP — Extreme", etc.) in
+// TradingView's own Legend / Data Window — the only hover mechanism Pine can drive.
+vwapAvg     = zoneCode == 1 ? vwapValue : na
+vwapMedium  = zoneCode == 2 ? vwapValue : na
+vwapExtreme = zoneCode == 3 ? vwapValue : na
 
-distSign = distPct >= 0 ? "+" : "-"
+plot(vwapAvg,     title = "VWAP — Average", color = color.green,  linewidth = 2)
+plot(vwapMedium,  title = "VWAP — Medium",  color = color.orange, linewidth = 2)
+plot(vwapExtreme, title = "VWAP — Extreme", color = color.red,    linewidth = 2)
 
-var table info = table.new(position.top_right, 2, 3, border_width = 1)
+// Exact distance % value, visible in the Data Window as you hover any bar.
+plot(distPct, title = "VWAP Distance % (Data Window)", display = display.data_window)
+
+// ───────────────────────────── Table (top-right, current bar) ─────────────────────────────
+var table info = table.new(position.top_right, 2, 2, border_width = 1)
 if barstate.islast
-    table.cell(info, 0, 0, "VWAP", text_color = color.white, bgcolor = color.new(color.black, 0))
-    table.cell(info, 1, 0, str.tostring(vwapValue, format.mintick), text_color = color.white, bgcolor = color.new(color.black, 0))
-    table.cell(info, 0, 1, "Distance", text_color = color.white, bgcolor = color.new(color.black, 0))
-    table.cell(info, 1, 1, distSign + str.tostring(absDist, "#.##") + "%", text_color = color.white, bgcolor = color.new(color.black, 0))
-    table.cell(info, 0, 2, "Zone", text_color = color.white, bgcolor = zoneColor)
-    table.cell(info, 1, 2, "", bgcolor = zoneColor)
+    table.cell(info, 0, 0, "VWAP Dist %", text_color = color.white, bgcolor = color.new(color.black, 0))
+    table.cell(info, 1, 0, (distPct >= 0 ? "+" : "") + str.tostring(distPct, "#.##") + "%", text_color = color.white, bgcolor = color.new(color.black, 0))
+    table.cell(info, 0, 1, "Zone", text_color = color.white, bgcolor = zoneColor)
+    table.cell(info, 1, 1, zoneLabel, text_color = color.white, bgcolor = zoneColor)
