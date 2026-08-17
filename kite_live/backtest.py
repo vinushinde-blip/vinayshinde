@@ -22,8 +22,8 @@ import config
 
 BASELINE_DAYS = 10
 MAX_CALL_SPAN_DAYS = 90   # stay under Kite's ~100-calendar-day cap per historical_data call
-ENTRY_CUTOFF = "15:15"     # no new entries this close to the session end
-NO_ENTRY_BEFORE = "09:30"  # skip the noisy open
+ENTRY_CUTOFF = "15:10"     # no new entries this close to the session end
+NO_ENTRY_BEFORE = "09:20"  # skip the noisy open
 
 
 def fetch_chunked_history(kite, token, start_date, end_date):
