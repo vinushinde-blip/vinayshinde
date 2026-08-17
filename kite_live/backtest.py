@@ -16,7 +16,7 @@ Core idea, day by day, symbol by symbol:
 
 import statistics
 from collections import defaultdict
-from datetime import timedelta
+from datetime import datetime, time as dtime, timedelta
 
 import config
 
@@ -196,20 +196,18 @@ def simulate_fixed_target_stop(sig, target_pct=1.0, stop_pct=0.5):
         c = s["candle"]
         if c["date"].strftime("%H:%M") >= ENTRY_CUTOFF:
             exit_price = c["close"]
-            return _trade_result(sig, entry_candle["date"], entry_price, c["date"], exit_price, "time_exit", is_long)
+            return _trade_result(sig["day"], sig["time"], sig["direction"], entry_candle["date"], entry_price, c["date"], exit_price, "time_exit")
         hit_stop = (c["low"] <= stop_price) if is_long else (c["high"] >= stop_price)
         hit_target = (c["high"] >= target_price) if is_long else (c["low"] <= target_price)
-        if hit_stop and hit_target:
+        if hit_stop:
             # Ambiguous intrabar ordering with only OHLC (no tick data) -- assume the
             # adverse outcome hits first, the conservative assumption for a backtest.
-            return _trade_result(sig, entry_candle["date"], entry_price, c["date"], stop_price, "stop", is_long)
-        if hit_stop:
-            return _trade_result(sig, entry_candle["date"], entry_price, c["date"], stop_price, "stop", is_long)
+            return _trade_result(sig["day"], sig["time"], sig["direction"], entry_candle["date"], entry_price, c["date"], stop_price, "stop")
         if hit_target:
-            return _trade_result(sig, entry_candle["date"], entry_price, c["date"], target_price, "target", is_long)
+            return _trade_result(sig["day"], sig["time"], sig["direction"], entry_candle["date"], entry_price, c["date"], target_price, "target")
 
     last = series[-1]["candle"]
-    return _trade_result(sig, entry_candle["date"], entry_price, last["date"], last["close"], "day_end", is_long)
+    return _trade_result(sig["day"], sig["time"], sig["direction"], entry_candle["date"], entry_price, last["date"], last["close"], "day_end")
 
 
 def simulate_trail_vwap(sig):
@@ -226,23 +224,87 @@ def simulate_trail_vwap(sig):
     for s in series[idx + 1:]:
         c = s["candle"]
         if c["date"].strftime("%H:%M") >= ENTRY_CUTOFF:
-            return _trade_result(sig, entry_candle["date"], entry_price, c["date"], c["close"], "time_exit", is_long)
+            return _trade_result(sig["day"], sig["time"], sig["direction"], entry_candle["date"], entry_price, c["date"], c["close"], "time_exit")
         reverted = (c["close"] <= s["vwap"]) if is_long else (c["close"] >= s["vwap"])
         if reverted:
-            return _trade_result(sig, entry_candle["date"], entry_price, c["date"], c["close"], "vwap_revert", is_long)
+            return _trade_result(sig["day"], sig["time"], sig["direction"], entry_candle["date"], entry_price, c["date"], c["close"], "vwap_revert")
 
     last = series[-1]["candle"]
-    return _trade_result(sig, entry_candle["date"], entry_price, last["date"], last["close"], "day_end", is_long)
+    return _trade_result(sig["day"], sig["time"], sig["direction"], entry_candle["date"], entry_price, last["date"], last["close"], "day_end")
 
 
-def _trade_result(sig, entry_time, entry_price, exit_time, exit_price, reason, is_long):
+# ─────────────────── Precise 1-minute entry (finer than the 5-min scan) ───────────────────
+
+def fetch_day_1min(kite, token, day):
+    """One trading day's 1-minute candles (Kite's minute-interval cap is 60 calendar
+    days per call, so a single day is always well within range)."""
+    start = datetime.combine(day, dtime(9, 15))
+    end = datetime.combine(day, dtime(15, 30))
+    return kite.historical_data(token, start, end, "minute")
+
+
+def find_precise_entry_1min(day_candles_1m, threshold, direction):
+    """
+    Re-derives the exact crossing moment using 1-minute candles (same cumulative-VWAP
+    methodology as the 5-min scan, just finer-grained), instead of waiting up to ~5
+    minutes for the next 5-min bar. Returns (series, idx) for the candle where
+    |distance%| first crosses `threshold` in the signal's direction, or (series, None)
+    if it never does on the 1-minute series (can happen right at the edges).
+    """
+    series = _intraday_series(day_candles_1m)
+    for idx, s in enumerate(series):
+        dist = s["dist_pct"]
+        hit = (dist > threshold) if direction == "Upside" else (dist < -threshold)
+        if hit:
+            return series, idx
+    return series, None
+
+
+def simulate_trade_1min(series, idx, day, direction, exit_rule="fixed", target_pct=1.0, stop_pct=0.5):
+    """
+    Enters AT the 1-minute candle where the crossing was detected (its close --
+    trading the candle that hits the signal, not the next one), then continues
+    monitoring subsequent 1-minute candles -- finer-grained than the 5-min
+    scan -- for the target/stop or VWAP-revert exit.
+    """
+    entry_candle = series[idx]["candle"]
+    entry_price = entry_candle["close"]
+    signal_time = entry_candle["date"].strftime("%H:%M")
+    is_long = direction == "Upside"
+
+    if exit_rule == "fixed":
+        target_price = entry_price * (1 + target_pct / 100.0) if is_long else entry_price * (1 - target_pct / 100.0)
+        stop_price = entry_price * (1 - stop_pct / 100.0) if is_long else entry_price * (1 + stop_pct / 100.0)
+
+    for s in series[idx + 1:]:
+        c = s["candle"]
+        if c["date"].strftime("%H:%M") >= ENTRY_CUTOFF:
+            return _trade_result(day, signal_time, direction, entry_candle["date"], entry_price, c["date"], c["close"], "time_exit")
+        if exit_rule == "fixed":
+            hit_stop = (c["low"] <= stop_price) if is_long else (c["high"] >= stop_price)
+            hit_target = (c["high"] >= target_price) if is_long else (c["low"] <= target_price)
+            if hit_stop:
+                return _trade_result(day, signal_time, direction, entry_candle["date"], entry_price, c["date"], stop_price, "stop")
+            if hit_target:
+                return _trade_result(day, signal_time, direction, entry_candle["date"], entry_price, c["date"], target_price, "target")
+        else:  # trail_vwap
+            reverted = (c["close"] <= s["vwap"]) if is_long else (c["close"] >= s["vwap"])
+            if reverted:
+                return _trade_result(day, signal_time, direction, entry_candle["date"], entry_price, c["date"], c["close"], "vwap_revert")
+
+    last = series[-1]["candle"]
+    return _trade_result(day, signal_time, direction, entry_candle["date"], entry_price, last["date"], last["close"], "day_end")
+
+
+def _trade_result(day, signal_time, direction, entry_time, entry_price, exit_time, exit_price, reason):
+    is_long = direction == "Upside"
     pnl_pct = (exit_price - entry_price) / entry_price * 100.0
     if not is_long:
         pnl_pct = -pnl_pct
     return {
-        "day": str(sig["day"]),
-        "signal_time": sig["time"],
-        "direction": sig["direction"],
+        "day": str(day),
+        "signal_time": signal_time,
+        "direction": direction,
         "entry_time": entry_time.strftime("%H:%M"),
         "entry_price": round(entry_price, 2),
         "exit_time": exit_time.strftime("%H:%M"),
