@@ -46,14 +46,17 @@ def _day_vwap_series(candles):
     return dist_series
 
 
-def bootstrap_symbol_stats(kite, token, days=config.HISTORY_DAYS):
+def bootstrap_symbol_stats(kite, token, days=config.HISTORY_DAYS, now=None):
     """
     Pulls the last ~`days` trading days of 5-min candles for one instrument, computes:
       - level1 / level2: Average<->Medium and Medium<->Extreme zone boundaries
         (1x / 2x the historical std-dev of distance%, same logic as the Pine script)
       - ten_day_high: the highest |distance%| reached on any of those days
+
+    `now` should be real exchange time (see get_exchange_now) rather than the
+    local clock, which can silently drift from IST.
     """
-    to_date = datetime.now()
+    to_date = now or datetime.now()
     from_date = to_date - timedelta(days=int(days * 1.8) + 5)  # buffer for weekends/holidays
 
     candles = kite.historical_data(token, from_date, to_date, config.CANDLE_INTERVAL)
@@ -82,10 +85,20 @@ def bootstrap_symbol_stats(kite, token, days=config.HISTORY_DAYS):
     return {"level1": level1, "level2": level2, "ten_day_high": ten_day_high}
 
 
-def _split_history(candles):
+def get_exchange_now(kite, anchor_symbol="NSE:RELIANCE"):
+    """
+    Real exchange time, fetched from a live quote. A container/host clock can
+    drift from IST (silently, with no error), which would otherwise truncate
+    "today" partway through the session -- this anchors every date/time
+    calculation in this module to Kite's own server-side timestamp instead.
+    """
+    q = kite.quote([anchor_symbol])[anchor_symbol]
+    return q.get("last_trade_time") or q.get("timestamp") or datetime.now()
+
+
+def _split_history(candles, today):
     """Groups candles by trading day; pulls today's (partial) candles out separately
     so they never leak into the historical baseline they're compared against."""
-    today = datetime.now().date()
     by_day = defaultdict(list)
     for c in candles:
         by_day[c["date"].date()].append(c)
@@ -93,17 +106,21 @@ def _split_history(candles):
     return by_day, today_candles
 
 
-def bootstrap_and_today(kite, token, days=config.HISTORY_DAYS):
+def bootstrap_and_today(kite, token, days=config.HISTORY_DAYS, now=None):
     """
     Like bootstrap_symbol_stats, but computes the historical baseline (zone
     thresholds + N-day high) from the last `days` FULL trading days only,
     excluding today, and also returns today's own candles for replay.
+
+    `now` should be real exchange time (see get_exchange_now) -- pass the same
+    anchor for every symbol in a batch run so they're all compared as of the
+    same moment.
     """
-    to_date = datetime.now()
+    to_date = now or datetime.now()
     from_date = to_date - timedelta(days=int(days * 1.8) + 8)
 
     candles = kite.historical_data(token, from_date, to_date, config.CANDLE_INTERVAL)
-    by_day, today_candles = _split_history(candles)
+    by_day, today_candles = _split_history(candles, to_date.date())
     prior_days = sorted(by_day.keys())[-days:]
 
     all_dist = []
@@ -166,11 +183,12 @@ def replay_today_signals(symbol, today_candles, ten_day_high):
 
 def bootstrap_all(kite, instruments_map, progress_cb=None):
     """Sequentially bootstraps every symbol, respecting Kite's historical-data rate limit."""
+    now = get_exchange_now(kite)
     stats = {}
     total = len(instruments_map)
     for i, (symbol, token) in enumerate(instruments_map.items(), start=1):
         try:
-            s = bootstrap_symbol_stats(kite, token)
+            s = bootstrap_symbol_stats(kite, token, now=now)
             if s:
                 stats[symbol] = s
         except Exception as e:
