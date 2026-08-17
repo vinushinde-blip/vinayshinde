@@ -35,18 +35,12 @@ zoneColor = zoneCode == 1 ? color.green : zoneCode == 2 ? color.orange : color.r
 zoneLabel = zoneCode == 1 ? "Average" : zoneCode == 2 ? "Medium" : "Extreme"
 
 // ───────────────────────────── Plot: single line, colored by zone ─────────────────────────────
-// Split into 3 plots (one per zone, only the active one is non-na per bar) so that
-// hovering the crosshair shows the matching titled row ("VWAP — Extreme", etc.) in
-// TradingView's own Legend / Data Window — the only hover mechanism Pine can drive.
-vwapAvg     = zoneCode == 1 ? vwapValue : na
-vwapMedium  = zoneCode == 2 ? vwapValue : na
-vwapExtreme = zoneCode == 3 ? vwapValue : na
+// One continuous plot; its color expression switches the moment zoneCode changes,
+// so the line itself changes color live as VWAP moves between zones.
+plot(vwapValue, title = "VWAP", color = zoneColor, linewidth = 2)
 
-plot(vwapAvg,     title = "VWAP — Average", color = color.green,  linewidth = 2)
-plot(vwapMedium,  title = "VWAP — Medium",  color = color.orange, linewidth = 2)
-plot(vwapExtreme, title = "VWAP — Extreme", color = color.red,    linewidth = 2)
-
-// Exact distance % value, visible in the Data Window as you hover any bar.
+// Exact distance % value, visible in the Data Window as you hover any bar
+// (kept off the chart itself so it doesn't add a visible line).
 plot(distPct, title = "VWAP Distance % (Data Window)", display = display.data_window)
 
 // ───────────────────────────── Table (top-right, current bar) ─────────────────────────────
