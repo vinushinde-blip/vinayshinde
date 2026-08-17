@@ -17,6 +17,7 @@ from features import build_feature_frame
 from crossings import detect_crossings, crossing_counts
 from behavior import build_event_table, summarize_events
 from backtest import backtest_symbol, summarize_trades
+from nifty_context import load_nifty_regime
 
 REPO_ROOT = "/home/user/vinayshinde/quant_vwap"
 MAP_PATH = f"{REPO_ROOT}/data_cache/nse500_instrument_map.csv"
@@ -62,6 +63,15 @@ def main():
     symbols = inst["Symbol"].tolist()
     done = load_checkpoint()
 
+    nifty_regime_by_tf = {}
+    for timeframe, subdir in TIMEFRAME_DIRS.items():
+        try:
+            nifty_regime_by_tf[timeframe] = load_nifty_regime(RAW_DIR, subdir)
+            log.info(f"Loaded Nifty regime for {timeframe}: {len(nifty_regime_by_tf[timeframe])} rows")
+        except FileNotFoundError:
+            log.warning(f"No NIFTY50 data for {timeframe}; strategies will run without market-regime filter")
+            nifty_regime_by_tf[timeframe] = None
+
     cross_counts_path = f"{RESULTS_DIR}/crossing_counts_by_symbol.parquet"
     events_path = f"{RESULTS_DIR}/behavior_events.parquet"
     trades_path = f"{RESULTS_DIR}/backtest_trades.parquet"
@@ -93,6 +103,7 @@ def main():
                     continue
 
                 feat = build_feature_frame(df)
+                nifty_regime = nifty_regime_by_tf.get(timeframe)
 
                 cross_ev = detect_crossings(feat)
                 cc = crossing_counts(cross_ev).reset_index()
@@ -100,11 +111,11 @@ def main():
                 cc["timeframe"] = timeframe
                 cc_buffer.append(cc)
 
-                ev = build_event_table(feat, symbol, timeframe)
+                ev = build_event_table(feat, symbol, timeframe, nifty_regime=nifty_regime)
                 if not ev.empty:
                     ev_buffer.append(ev)
 
-                trades = backtest_symbol(feat, symbol, timeframe)
+                trades = backtest_symbol(feat, symbol, timeframe, nifty_regime=nifty_regime)
                 if not trades.empty:
                     tr_buffer.append(trades)
 

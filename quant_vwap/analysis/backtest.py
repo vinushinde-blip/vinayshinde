@@ -45,7 +45,71 @@ def _entry_events(delta: np.ndarray, session: np.ndarray):
     return events
 
 
-def backtest_symbol(df: pd.DataFrame, symbol: str, timeframe: str) -> pd.DataFrame:
+# A long (buying an oversold-vs-VWAP stock) is the higher-risk side when the
+# index itself is in a strong downtrend; a short is higher-risk when the index
+# is in a strong uptrend. The "nifty_filtered" variant skips those entries.
+_COUNTER_TREND_REGIME = {"below": "strong_down", "above": "strong_up"}
+
+
+def _simulate(idx_arr, thr, direction, target, stop, open_, high, low, close,
+              sess_last, n, ts, regime_arr=None, filtered=False):
+    trades = []
+    cursor = -1
+    is_long = direction == "below"
+    for sig_idx in idx_arr:
+        entry_idx = sig_idx + 1
+        if entry_idx <= cursor:
+            continue  # still in a prior open trade for this variant
+        end_idx = sess_last[entry_idx] if entry_idx < n else -1
+        if entry_idx >= n or end_idx < entry_idx:
+            continue  # no bars left in session to enter/hold
+
+        if filtered and regime_arr is not None and regime_arr[sig_idx] == _COUNTER_TREND_REGIME[direction]:
+            continue  # skip counter-trend-vs-Nifty entry; cursor untouched (never entered)
+
+        entry_price = open_[entry_idx]
+        if is_long:
+            tp_price = entry_price * (1 + target / 100)
+            sl_price = entry_price * (1 - stop / 100)
+        else:
+            tp_price = entry_price * (1 - target / 100)
+            sl_price = entry_price * (1 + stop / 100)
+
+        w_high = high[entry_idx:end_idx + 1]
+        w_low = low[entry_idx:end_idx + 1]
+        w_close = close[entry_idx:end_idx + 1]
+
+        if is_long:
+            tp_hit = w_high >= tp_price
+            sl_hit = w_low <= sl_price
+        else:
+            tp_hit = w_low <= tp_price
+            sl_hit = w_high >= sl_price
+
+        tp_pos = np.argmax(tp_hit) if tp_hit.any() else None
+        sl_pos = np.argmax(sl_hit) if sl_hit.any() else None
+
+        if sl_pos is not None and (tp_pos is None or sl_pos <= tp_pos):
+            exit_offset, exit_price, reason = sl_pos, sl_price, "SL"
+        elif tp_pos is not None:
+            exit_offset, exit_price, reason = tp_pos, tp_price, "TP"
+        else:
+            exit_offset, exit_price, reason = len(w_close) - 1, w_close[-1], "EOD"
+
+        exit_idx = entry_idx + exit_offset
+        pnl_pct = (exit_price - entry_price) / entry_price * 100 * (1 if is_long else -1)
+        regime_at_signal = regime_arr[sig_idx] if regime_arr is not None else None
+
+        trades.append((
+            thr, direction, target, stop,
+            ts[sig_idx], ts[entry_idx], ts[exit_idx],
+            entry_price, exit_price, pnl_pct, reason, exit_offset + 1, regime_at_signal,
+        ))
+        cursor = exit_idx
+    return trades
+
+
+def backtest_symbol(df: pd.DataFrame, symbol: str, timeframe: str, nifty_regime: pd.DataFrame = None) -> pd.DataFrame:
     df = df.reset_index(drop=True)
     n = len(df)
     open_ = df["open"].to_numpy()
@@ -58,65 +122,34 @@ def backtest_symbol(df: pd.DataFrame, symbol: str, timeframe: str) -> pd.DataFra
 
     sess_last = _session_last_idx(pd.factorize(session)[0])
 
-    trades = []
+    regime_arr = None
+    if nifty_regime is not None:
+        merged = pd.merge(
+            df[["timestamp"]], nifty_regime[["timestamp", "nifty_regime"]],
+            on="timestamp", how="left",
+        )
+        regime_arr = merged["nifty_regime"].fillna("neutral").to_numpy()
+
+    all_rows = []
     for thr, direction, idx_arr in _entry_events(delta, session):
         for target, stop in TP_SL_VARIANTS:
-            cursor = -1
-            for sig_idx in idx_arr:
-                entry_idx = sig_idx + 1
-                if entry_idx <= cursor:
-                    continue  # still in a prior open trade for this variant
-                end_idx = sess_last[entry_idx] if entry_idx < n else -1
-                if entry_idx >= n or end_idx < entry_idx:
-                    continue  # no bars left in session to enter/hold
+            base = _simulate(idx_arr, thr, direction, target, stop, open_, high, low, close,
+                              sess_last, n, ts, regime_arr=regime_arr, filtered=False)
+            for row in base:
+                all_rows.append((symbol, timeframe, "baseline") + row)
 
-                entry_price = open_[entry_idx]
-                is_long = direction == "below"
-
-                if is_long:
-                    tp_price = entry_price * (1 + target / 100)
-                    sl_price = entry_price * (1 - stop / 100)
-                else:
-                    tp_price = entry_price * (1 - target / 100)
-                    sl_price = entry_price * (1 + stop / 100)
-
-                w_high = high[entry_idx:end_idx + 1]
-                w_low = low[entry_idx:end_idx + 1]
-                w_close = close[entry_idx:end_idx + 1]
-
-                if is_long:
-                    tp_hit = w_high >= tp_price
-                    sl_hit = w_low <= sl_price
-                else:
-                    tp_hit = w_low <= tp_price
-                    sl_hit = w_high >= sl_price
-
-                tp_pos = np.argmax(tp_hit) if tp_hit.any() else None
-                sl_pos = np.argmax(sl_hit) if sl_hit.any() else None
-
-                if sl_pos is not None and (tp_pos is None or sl_pos <= tp_pos):
-                    exit_offset, exit_price, reason = sl_pos, sl_price, "SL"
-                elif tp_pos is not None:
-                    exit_offset, exit_price, reason = tp_pos, tp_price, "TP"
-                else:
-                    exit_offset, exit_price, reason = len(w_close) - 1, w_close[-1], "EOD"
-
-                exit_idx = entry_idx + exit_offset
-                pnl_pct = (exit_price - entry_price) / entry_price * 100 * (1 if is_long else -1)
-
-                trades.append((
-                    symbol, timeframe, thr, direction, target, stop,
-                    ts[sig_idx], ts[entry_idx], ts[exit_idx],
-                    entry_price, exit_price, pnl_pct, reason, exit_offset + 1,
-                ))
-                cursor = exit_idx
+            if regime_arr is not None:
+                filt = _simulate(idx_arr, thr, direction, target, stop, open_, high, low, close,
+                                  sess_last, n, ts, regime_arr=regime_arr, filtered=True)
+                for row in filt:
+                    all_rows.append((symbol, timeframe, "nifty_filtered") + row)
 
     cols = [
-        "symbol", "timeframe", "threshold", "direction", "target_pct", "stop_pct",
+        "symbol", "timeframe", "strategy_variant", "threshold", "direction", "target_pct", "stop_pct",
         "signal_time", "entry_time", "exit_time", "entry_price", "exit_price",
-        "pnl_pct", "exit_reason", "bars_held",
+        "pnl_pct", "exit_reason", "bars_held", "nifty_regime_at_signal",
     ]
-    return pd.DataFrame(trades, columns=cols)
+    return pd.DataFrame(all_rows, columns=cols)
 
 
 def summarize_trades(trades: pd.DataFrame, group_cols) -> pd.DataFrame:

@@ -41,9 +41,17 @@ def _bb_bucket(pct_b: pd.Series) -> pd.Series:
     return pd.cut(pct_b, bins=[-1000, 0, 1, 1000], labels=["below_lower", "inside_bands", "above_upper"])
 
 
-def build_event_table(df: pd.DataFrame, symbol: str, timeframe: str) -> pd.DataFrame:
+def build_event_table(df: pd.DataFrame, symbol: str, timeframe: str, nifty_regime: pd.DataFrame = None) -> pd.DataFrame:
     """One row per crossing event with forward outcomes + indicator state at entry."""
     n = len(df)
+
+    nifty_regime_arr = None
+    if nifty_regime is not None:
+        merged = pd.merge(
+            df[["timestamp"]], nifty_regime[["timestamp", "nifty_regime"]],
+            on="timestamp", how="left",
+        )
+        nifty_regime_arr = merged["nifty_regime"].fillna("neutral").to_numpy()
     delta = df["delta_pct"].to_numpy()
     abs_delta = np.abs(delta)
     session = df["session"].to_numpy()
@@ -92,6 +100,7 @@ def build_event_table(df: pd.DataFrame, symbol: str, timeframe: str) -> pd.DataF
                 "vol_bucket": vol_b[idx],
                 "bb_bucket": bb_b[idx],
                 "macd_sign": macd_sign[idx],
+                "nifty_regime": nifty_regime_arr[idx] if nifty_regime_arr is not None else "n/a",
             }
 
             for h in HORIZONS:
