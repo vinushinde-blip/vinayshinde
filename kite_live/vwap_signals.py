@@ -82,6 +82,88 @@ def bootstrap_symbol_stats(kite, token, days=config.HISTORY_DAYS):
     return {"level1": level1, "level2": level2, "ten_day_high": ten_day_high}
 
 
+def _split_history(candles):
+    """Groups candles by trading day; pulls today's (partial) candles out separately
+    so they never leak into the historical baseline they're compared against."""
+    today = datetime.now().date()
+    by_day = defaultdict(list)
+    for c in candles:
+        by_day[c["date"].date()].append(c)
+    today_candles = by_day.pop(today, [])
+    return by_day, today_candles
+
+
+def bootstrap_and_today(kite, token, days=config.HISTORY_DAYS):
+    """
+    Like bootstrap_symbol_stats, but computes the historical baseline (zone
+    thresholds + N-day high) from the last `days` FULL trading days only,
+    excluding today, and also returns today's own candles for replay.
+    """
+    to_date = datetime.now()
+    from_date = to_date - timedelta(days=int(days * 1.8) + 8)
+
+    candles = kite.historical_data(token, from_date, to_date, config.CANDLE_INTERVAL)
+    by_day, today_candles = _split_history(candles)
+    prior_days = sorted(by_day.keys())[-days:]
+
+    all_dist = []
+    day_highs = []
+    for day in prior_days:
+        day_dist = _day_vwap_series(by_day[day])
+        if day_dist:
+            all_dist.extend(day_dist)
+            day_highs.append(max(abs(d) for d in day_dist))
+
+    if len(all_dist) < 2:
+        return None
+
+    stdev = statistics.stdev(all_dist)
+    return {
+        "level1": stdev * 1.0,
+        "level2": stdev * 2.0,
+        "ten_day_high": max(day_highs) if day_highs else 0.0,
+        "today_candles": today_candles,
+    }
+
+
+def replay_today_signals(symbol, today_candles, ten_day_high):
+    """
+    Walks today's candles chronologically, tracking cumulative intraday VWAP, and
+    emits one event per *rising edge* -- the moment |distance%| newly exceeds
+    ten_day_high -- so a breakout that persists across several candles counts as
+    one signal, not one per candle. A pullback below the threshold followed by a
+    fresh breakout later in the day counts as a second signal.
+    """
+    cum_pv = 0.0
+    cum_vol = 0.0
+    was_crossing = False
+    events = []
+    for c in today_candles:
+        typical = (c["high"] + c["low"] + c["close"]) / 3.0
+        vol = c["volume"] or 0
+        cum_pv += typical * vol
+        cum_vol += vol
+        if cum_vol <= 0:
+            continue
+        vwap = cum_pv / cum_vol
+        if not vwap:
+            continue
+        dist_pct = (c["close"] - vwap) / vwap * 100.0
+        is_crossing = abs(dist_pct) > ten_day_high
+        if is_crossing and not was_crossing:
+            events.append({
+                "symbol": symbol,
+                "time": c["date"].strftime("%H:%M"),
+                "close": c["close"],
+                "vwap": vwap,
+                "dist_pct": dist_pct,
+                "direction": "Upside" if dist_pct >= 0 else "Downside",
+                "ten_day_high": ten_day_high,
+            })
+        was_crossing = is_crossing
+    return events
+
+
 def bootstrap_all(kite, instruments_map, progress_cb=None):
     """Sequentially bootstraps every symbol, respecting Kite's historical-data rate limit."""
     stats = {}
