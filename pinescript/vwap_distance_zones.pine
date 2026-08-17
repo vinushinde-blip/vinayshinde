@@ -43,10 +43,44 @@ plot(vwapValue, title = "VWAP", color = zoneColor, linewidth = 2)
 // (kept off the chart itself so it doesn't add a visible line).
 plot(distPct, title = "VWAP Distance % (Data Window)", display = display.data_window)
 
+// ───────────────────────────── Rolling N-day highest |distance%| ─────────────────────────────
+// Tracks each completed trading day's max |distance%| in an array, so "highest in the
+// last N days" can be read back without request.security().
+var array<float> dayHighs  = array.new_float(0)
+var float        curDayMax = na
+
+isNewDay = timeframe.change("D")
+if isNewDay
+    if not na(curDayMax)
+        array.unshift(dayHighs, curDayMax)
+        if array.size(dayHighs) > 30
+            array.pop(dayHighs)
+    curDayMax := absDist
+else
+    curDayMax := na(curDayMax) ? absDist : math.max(curDayMax, absDist)
+
+f_highestOverDays(n) =>
+    m = nz(curDayMax)
+    limit = math.min(n - 2, array.size(dayHighs) - 1)
+    if limit >= 0
+        for i = 0 to limit
+            m := math.max(m, array.get(dayHighs, i))
+    m
+
+high5D  = f_highestOverDays(5)
+high10D = f_highestOverDays(10)
+high15D = f_highestOverDays(15)
+
 // ───────────────────────────── Table (top-right, current bar) ─────────────────────────────
-var table info = table.new(position.top_right, 2, 2, border_width = 1)
+var table info = table.new(position.top_right, 2, 5, border_width = 1)
 if barstate.islast
     table.cell(info, 0, 0, "VWAP Dist %", text_color = color.white, bgcolor = color.new(color.black, 0))
     table.cell(info, 1, 0, (distPct >= 0 ? "+" : "") + str.tostring(distPct, "#.##") + "%", text_color = color.white, bgcolor = color.new(color.black, 0))
     table.cell(info, 0, 1, "Zone", text_color = color.white, bgcolor = zoneColor)
     table.cell(info, 1, 1, zoneLabel, text_color = color.white, bgcolor = zoneColor)
+    table.cell(info, 0, 2, "5D High", text_color = color.white, bgcolor = color.new(color.black, 0))
+    table.cell(info, 1, 2, str.tostring(high5D, "#.##") + "%", text_color = color.white, bgcolor = color.new(color.black, 0))
+    table.cell(info, 0, 3, "10D High", text_color = color.white, bgcolor = color.new(color.black, 0))
+    table.cell(info, 1, 3, str.tostring(high10D, "#.##") + "%", text_color = color.white, bgcolor = color.new(color.black, 0))
+    table.cell(info, 0, 4, "15D High", text_color = color.white, bgcolor = color.new(color.black, 0))
+    table.cell(info, 1, 4, str.tostring(high15D, "#.##") + "%", text_color = color.white, bgcolor = color.new(color.black, 0))
