@@ -1,0 +1,62 @@
+{
+  "train_yr1_optimistic": {
+    "initial_capital": 1000000.0,
+    "final_equity": 1066790.12,
+    "total_return_pct": 6.68,
+    "cagr_pct": 6.78,
+    "years": 0.99,
+    "n_trades": 4768,
+    "win_rate_pct": 30.05,
+    "avg_win_rupees": 1373.25,
+    "avg_loss_rupees": -570.04,
+    "profit_factor": 1.035,
+    "max_drawdown_pct": -4.33,
+    "sharpe_annualized": 0.929,
+    "total_costs_rupees": 250213.38
+  },
+  "train_yr1_realistic": {
+    "initial_capital": 1000000.0,
+    "final_equity": 925543.19,
+    "total_return_pct": -7.45,
+    "cagr_pct": -7.55,
+    "years": 0.99,
+    "n_trades": 4768,
+    "win_rate_pct": 29.95,
+    "avg_win_rupees": 1254.91,
+    "avg_loss_rupees": -558.82,
+    "profit_factor": 0.96,
+    "max_drawdown_pct": -9.22,
+    "sharpe_annualized": -1.029,
+    "total_costs_rupees": 372600.46
+  },
+  "test_yr2_optimistic": {
+    "initial_capital": 1000000.0,
+    "final_equity": 978916.65,
+    "total_return_pct": -2.11,
+    "cagr_pct": -2.12,
+    "years": 1.0,
+    "n_trades": 2834,
+    "win_rate_pct": 28.79,
+    "avg_win_rupees": 1261.14,
+    "avg_loss_rupees": -520.4,
+    "profit_factor": 0.98,
+    "max_drawdown_pct": -6.64,
+    "sharpe_annualized": -0.393,
+    "total_costs_rupees": 136435.61
+  },
+  "test_yr2_realistic": {
+    "initial_capital": 1000000.0,
+    "final_equity": 899971.5,
+    "total_return_pct": -10.0,
+    "cagr_pct": -10.04,
+    "years": 1.0,
+    "n_trades": 2834,
+    "win_rate_pct": 28.69,
+    "avg_win_rupees": 1185.44,
+    "avg_loss_rupees": -526.37,
+    "profit_factor": 0.906,
+    "max_drawdown_pct": -10.8,
+    "sharpe_annualized": -1.886,
+    "total_costs_rupees": 209350.67
+  }
+}
