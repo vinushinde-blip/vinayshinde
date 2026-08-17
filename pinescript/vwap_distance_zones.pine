@@ -27,3 +27,14 @@ level3 = stdevDist * mult3
 zoneColor = absDist <= level1 ? color.green : absDist <= level2 ? color.orange : absDist <= level3 ? color.yellow : color.red
 
 plot(vwapValue, title = "VWAP", color = zoneColor, linewidth = 2)
+
+distSign = distPct >= 0 ? "+" : "-"
+
+var table info = table.new(position.top_right, 2, 3, border_width = 1)
+if barstate.islast
+    table.cell(info, 0, 0, "VWAP", text_color = color.white, bgcolor = color.new(color.black, 0))
+    table.cell(info, 1, 0, str.tostring(vwapValue, format.mintick), text_color = color.white, bgcolor = color.new(color.black, 0))
+    table.cell(info, 0, 1, "Distance", text_color = color.white, bgcolor = color.new(color.black, 0))
+    table.cell(info, 1, 1, distSign + str.tostring(absDist, "#.##") + "%", text_color = color.white, bgcolor = color.new(color.black, 0))
+    table.cell(info, 0, 2, "Zone", text_color = color.white, bgcolor = zoneColor)
+    table.cell(info, 1, 2, "", bgcolor = zoneColor)
