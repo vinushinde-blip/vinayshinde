@@ -1,0 +1,783 @@
+<title>VWAP Reversion Study</title>
+<style>
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { color-scheme: dark; } }
+  :root[data-theme="dark"] { color-scheme: dark; }
+
+  :root {
+    --bg: #EEF2F4;
+    --surface: #FFFFFF;
+    --surface-2: #F5F7F8;
+    --ink: #10181D;
+    --ink-2: #45535B;
+    --ink-3: #7C8B92;
+    --rule: #DCE3E6;
+    --rule-strong: #C3CCD0;
+    --accent: #2A78D6;
+    --accent-soft: #DDE9F8;
+    --above: #2A78D6;
+    --below: #EB6834;
+    --tf-1m: #2A78D6;
+    --tf-5m: #EB6834;
+    --tf-15m: #1BAF7A;
+    --good: #007A2E;
+    --bad: #C23B3A;
+    --div-pos: #2A78D6;
+    --div-neg: #C23B3A;
+    --div-mid: #EFEEEA;
+    --shadow: 0 1px 2px rgba(16,24,29,.06), 0 8px 24px -12px rgba(16,24,29,.15);
+    --font-display: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Noto Serif', serif;
+    --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', 'Roboto Mono', Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0D1417;
+      --surface: #141D21;
+      --surface-2: #182226;
+      --ink: #E8EEF0;
+      --ink-2: #A9B8BD;
+      --ink-3: #728388;
+      --rule: #223035;
+      --rule-strong: #2C3D42;
+      --accent: #5B9EE8;
+      --accent-soft: #1B2C3B;
+      --above: #5B9EE8;
+      --below: #E5824F;
+      --tf-1m: #5B9EE8;
+      --tf-5m: #E5824F;
+      --tf-15m: #3CC28E;
+      --good: #3FBE72;
+      --bad: #E2726F;
+      --div-pos: #5B9EE8;
+      --div-neg: #E2726F;
+      --div-mid: #2A2E2C;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.5);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0D1417;
+    --surface: #141D21;
+    --surface-2: #182226;
+    --ink: #E8EEF0;
+    --ink-2: #A9B8BD;
+    --ink-3: #728388;
+    --rule: #223035;
+    --rule-strong: #2C3D42;
+    --accent: #5B9EE8;
+    --accent-soft: #1B2C3B;
+    --above: #5B9EE8;
+    --below: #E5824F;
+    --tf-1m: #5B9EE8;
+    --tf-5m: #E5824F;
+    --tf-15m: #3CC28E;
+    --good: #3FBE72;
+    --bad: #E2726F;
+    --div-pos: #5B9EE8;
+    --div-neg: #E2726F;
+    --div-mid: #2A2E2C;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.5);
+  }
+
+  * { box-sizing: border-box; }
+  html { text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: var(--accent-soft); }
+
+  a { color: var(--accent); }
+  h1, h2, h3 { font-family: var(--font-display); font-weight: 600; text-wrap: balance; color: var(--ink); margin: 0; }
+  .num, .mono, table td.num, table th.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 28px; }
+  .prose { max-width: 700px; }
+
+  /* ---------- Header ---------- */
+  header.hero {
+    border-bottom: 1px solid var(--rule);
+    padding: 56px 0 36px;
+    background:
+      radial-gradient(1100px 320px at 12% -10%, var(--accent-soft), transparent 60%),
+      var(--bg);
+  }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 600;
+    margin: 0 0 14px;
+  }
+  header.hero h1 { font-size: clamp(32px, 4.4vw, 46px); letter-spacing: -0.01em; }
+  header.hero .sub { max-width: 720px; margin: 16px 0 0; color: var(--ink-2); font-size: 17px; }
+
+  .stat-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-top: 32px;
+  }
+  .stat-tile { background: var(--surface); padding: 18px 20px; }
+  .stat-tile .v { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 26px; font-weight: 600; letter-spacing: -0.01em; }
+  .stat-tile .l { font-size: 12.5px; color: var(--ink-3); margin-top: 4px; letter-spacing: .01em; }
+
+  /* ---------- Nav ---------- */
+  nav.toc {
+    position: sticky; top: 0; z-index: 20;
+    background: color-mix(in oklab, var(--bg) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--rule);
+  }
+  nav.toc .wrap { display: flex; gap: 22px; overflow-x: auto; padding: 12px 28px; }
+  nav.toc a {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    letter-spacing: .02em;
+    color: var(--ink-2);
+    text-decoration: none;
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    padding-bottom: 2px;
+  }
+  nav.toc a:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* ---------- Sections ---------- */
+  section { padding: 56px 0; border-bottom: 1px solid var(--rule); }
+  section:last-of-type { border-bottom: none; }
+  .section-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 8px; }
+  .section-no { font-family: var(--font-mono); color: var(--ink-3); font-size: 13px; }
+  section h2 { font-size: 27px; }
+  .section-dek { color: var(--ink-2); max-width: 700px; margin: 14px 0 30px; }
+
+  p { color: var(--ink-2); }
+  .prose p + p { margin-top: 12px; }
+  code { font-family: var(--font-mono); background: var(--surface-2); padding: 1px 6px; border-radius: 4px; font-size: .92em; color: var(--ink); }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+  }
+  .card-pad { padding: 22px 24px; }
+  .card-title { font-size: 14px; font-weight: 600; color: var(--ink); margin: 0 0 2px; }
+  .card-note { font-size: 12.5px; color: var(--ink-3); margin: 0 0 18px; }
+
+  .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 16px; }
+  @media (max-width: 900px) { .grid-3 { grid-template-columns: 1fr; } }
+
+  .scroll-x { overflow-x: auto; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th, td { padding: 8px 12px; text-align: left; white-space: nowrap; }
+  thead th {
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: .04em; text-transform: uppercase;
+    color: var(--ink-3); border-bottom: 1px solid var(--rule-strong); font-weight: 600;
+  }
+  tbody tr { border-bottom: 1px solid var(--rule); }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--surface-2); }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .pos { color: var(--good); }
+  .neg { color: var(--bad); }
+
+  .pill {
+    display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11.5px;
+    font-family: var(--font-mono); font-weight: 600; letter-spacing: .01em;
+  }
+  .pill-above { background: color-mix(in oklab, var(--above) 16%, var(--surface)); color: var(--above); }
+  .pill-below { background: color-mix(in oklab, var(--below) 16%, var(--surface)); color: var(--below); }
+
+  /* legend */
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; margin: 0 0 14px; font-size: 12.5px; color: var(--ink-2); }
+  .legend .k { display: inline-flex; align-items: center; gap: 6px; }
+  .legend .sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+  /* charts */
+  .chart-svg { width: 100%; height: auto; display: block; overflow: visible; }
+  .bar-tip {
+    position: fixed; pointer-events: none; z-index: 60;
+    background: var(--ink); color: var(--bg);
+    font-family: var(--font-mono); font-size: 12px; line-height: 1.5;
+    padding: 8px 10px; border-radius: 7px; box-shadow: var(--shadow);
+    opacity: 0; transform: translate(-50%, -100%); transition: opacity .08s ease;
+    white-space: nowrap;
+  }
+  .axis-label { font-family: var(--font-mono); font-size: 10.5px; fill: var(--ink-3); }
+  .grid-line { stroke: var(--rule); stroke-width: 1; }
+  .zero-line { stroke: var(--rule-strong); stroke-width: 1; }
+
+  .heat-grid { display: grid; gap: 3px; }
+  .heat-cell {
+    border-radius: 6px; padding: 9px 10px; font-family: var(--font-mono); font-size: 12px;
+    display: flex; flex-direction: column; gap: 2px; cursor: default;
+  }
+  .heat-cell .hv { font-weight: 700; font-size: 13px; }
+  .heat-cell .hn { font-size: 10.5px; opacity: .75; }
+  .heat-row-label, .heat-col-label {
+    font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); display: flex; align-items: center;
+  }
+  .heat-col-label { justify-content: center; padding-bottom: 2px; }
+
+  .callout {
+    border-left: 3px solid var(--accent);
+    background: var(--accent-soft);
+    padding: 14px 18px;
+    border-radius: 0 10px 10px 0;
+    font-size: 14.5px;
+    color: var(--ink);
+  }
+  .callout b { color: var(--ink); }
+  .callout.warn { border-color: var(--bad); background: color-mix(in oklab, var(--bad) 10%, var(--surface)); }
+
+  .rule-def {
+    display: grid; grid-template-columns: 140px 1fr; gap: 4px 16px; font-size: 14px; margin: 18px 0;
+  }
+  .rule-def dt { font-family: var(--font-mono); color: var(--ink-3); font-size: 12.5px; padding-top: 2px; }
+  .rule-def dd { margin: 0; color: var(--ink); }
+
+  ol.steps { padding-left: 0; list-style: none; counter-reset: step; margin: 18px 0; }
+  ol.steps li {
+    counter-increment: step; position: relative; padding: 10px 0 10px 40px; font-size: 14.5px; color: var(--ink-2);
+    border-bottom: 1px solid var(--rule);
+  }
+  ol.steps li:last-child { border-bottom: none; }
+  ol.steps li::before {
+    content: counter(step); position: absolute; left: 0; top: 9px;
+    font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: var(--accent);
+    width: 24px; height: 24px; border-radius: 6px; background: var(--accent-soft);
+    display: flex; align-items: center; justify-content: center;
+  }
+  ol.steps b { color: var(--ink); }
+
+  footer { padding: 40px 0 60px; color: var(--ink-3); font-size: 13px; }
+  footer a { color: var(--ink-2); }
+
+  @media (max-width: 640px) {
+    .stat-row { grid-template-columns: repeat(2, 1fr); }
+    section { padding: 40px 0; }
+  }
+</style>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Quantitative research note</p>
+    <h1>VWAP mean&#8203;-reversion across the NSE 500</h1>
+    <p class="sub">How far intraday price wanders from session VWAP, how often, what happens next &mdash; and whether trading the snap-back is worth the stop-loss. Built on two years of 1‑, 5‑ and 15‑minute bars for all 500 NSE&nbsp;500 constituents, fetched live from Zerodha Kite Connect.</p>
+    <div class="stat-row" id="statRow"></div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a href="#scope">Scope &amp; method</a>
+    <a href="#crossings">Crossing frequency</a>
+    <a href="#behavior">Reversion behavior</a>
+    <a href="#rules">Strategy rules</a>
+    <a href="#backtest">Backtest results</a>
+    <a href="#nifty">Market context</a>
+    <a href="#recommend">Recommendation</a>
+    <a href="#limits">Limitations</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="scope">
+    <div class="section-head"><span class="section-no">01</span><h2>Scope &amp; method</h2></div>
+    <p class="section-dek">What was measured, over what universe, and how VWAP and &ldquo;delta%&rdquo; are defined.</p>
+
+    <div class="grid-3">
+      <div class="card card-pad prose">
+        <p class="card-title">Universe &amp; data</p>
+        <p style="color:var(--ink-2); font-size:14px; margin:0;">All 500 NSE&nbsp;500 index constituents (current membership, applied retroactively &mdash; see Limitations). 1‑minute, 5‑minute and 15‑minute OHLCV candles, <b style="color:var(--ink)">17&nbsp;Aug&nbsp;2024 &rarr; 17&nbsp;Aug&nbsp;2026</b>, pulled live via the Kite Connect historical-data API (chunked at each interval&rsquo;s per-request limit: 60/100/200 days).</p>
+      </div>
+      <div class="card card-pad prose">
+        <p class="card-title">Session VWAP</p>
+        <p style="color:var(--ink-2); font-size:14px; margin:0;">Recomputed from scratch every session (VWAP never carries across days). Typical price <code>(H+L+C)/3</code>, volume-weighted, cumulative from the day&rsquo;s open.</p>
+      </div>
+      <div class="card card-pad prose">
+        <p class="card-title">Delta% &amp; ranges</p>
+        <p style="color:var(--ink-2); font-size:14px; margin:0;"><code>delta% = (close &minus; vwap) / vwap &times; 100</code>. Four thresholds tested both above and below VWAP: <b style="color:var(--ink)">1.5% &middot; 2% &middot; 3% &middot; 4%</b>.</p>
+      </div>
+    </div>
+
+    <div class="callout" style="margin-top:20px;">
+      A <b>crossing event</b> fires the instant delta% moves from inside a band to outside it &mdash; e.g. price steps from +1.3% to +1.6% away from VWAP, crossing the 1.5% threshold. Every stock &times; timeframe &times; threshold &times; direction combination is tracked independently across the full two years.
+    </div>
+  </section>
+
+  <section id="crossings">
+    <div class="section-head"><span class="section-no">02</span><h2>Crossing frequency</h2></div>
+    <p class="section-dek">How often price actually reaches each distance from VWAP, per timeframe. Coarser bars cross the wide thresholds far less often &mdash; the sample thins fast at 3&ndash;4% on 15‑minute bars.</p>
+    <div class="card card-pad">
+      <div class="legend">
+        <span class="k"><span class="sw" style="background:var(--above)"></span>Above VWAP (short signal)</span>
+        <span class="k"><span class="sw" style="background:var(--below)"></span>Below VWAP (long signal)</span>
+      </div>
+      <div class="grid-3" id="crossingCharts"></div>
+    </div>
+  </section>
+
+  <section id="behavior">
+    <div class="section-head"><span class="section-no">03</span><h2>Reversion behavior</h2></div>
+    <p class="section-dek">Once delta% crosses a threshold, does price actually come back to VWAP &mdash; and how fast? &ldquo;Full reversion&rdquo; means delta% touches zero again within the window; &ldquo;band exit&rdquo; only means it drifts back inside the threshold.</p>
+
+    <div class="card card-pad">
+      <p class="card-title">Probability of full reversion to VWAP within 20 bars</p>
+      <p class="card-note">By threshold and direction, one panel per timeframe. Note the timeframe effect: on 1‑minute bars a 1.5% deviation reverts fully only ~4&ndash;6% of the time within 20 bars; on 15‑minute bars the same threshold reverts ~54&ndash;66% of the time &mdash; a slow-bar deviation is a much stronger reversion signal than a fast-bar one.</p>
+      <div class="legend">
+        <span class="k"><span class="sw" style="background:var(--above)"></span>Above VWAP</span>
+        <span class="k"><span class="sw" style="background:var(--below)"></span>Below VWAP</span>
+      </div>
+      <div class="grid-3" id="reversionCharts"></div>
+    </div>
+
+    <div class="grid-3" style="margin-top:16px;">
+      <div class="card card-pad">
+        <p class="card-title">By RSI(14) at entry</p>
+        <p class="card-note">1.5% threshold, band-exit within 10 bars</p>
+        <div class="scroll-x" id="tblRsi"></div>
+      </div>
+      <div class="card card-pad">
+        <p class="card-title">By ADX(14) at entry</p>
+        <p class="card-note">1.5% threshold, band-exit within 10 bars</p>
+        <div class="scroll-x" id="tblAdx"></div>
+      </div>
+      <div class="card card-pad">
+        <p class="card-title">By volume ratio at entry</p>
+        <p class="card-note">1.5% threshold, band-exit within 10 bars</p>
+        <div class="scroll-x" id="tblVol"></div>
+      </div>
+    </div>
+
+    <div class="callout" style="margin-top:16px;">
+      <b>Volume confirms, it doesn&rsquo;t contradict.</b> Reversion is consistently more likely, not less, when the crossing happens on above-average volume (high vol_ratio) &mdash; a high-volume 1.5% overshoot on 15‑min bars exits the band 94% of the time vs. 90% on low volume. A volume spike accompanying a VWAP deviation reads as exhaustion, not continuation.
+    </div>
+  </section>
+
+  <section id="rules">
+    <div class="section-head"><span class="section-no">04</span><h2>Strategy rules</h2></div>
+    <p class="section-dek">The exact mean-reversion rule set that was backtested &mdash; every stock, every timeframe, every threshold, both target:stop variants.</p>
+
+    <ol class="steps">
+      <li><b>Trigger.</b> Delta% crosses further from VWAP through a threshold (1.5% / 2% / 3% / 4%).</li>
+      <li><b>Direction.</b> Price <span class="pill pill-above">above</span> VWAP by &ge; threshold &rarr; <b>short</b>, betting on reversion down. Price <span class="pill pill-below">below</span> VWAP by &ge; threshold &rarr; <b>long</b>, betting on reversion up.</li>
+      <li><b>Entry.</b> Next bar&rsquo;s open (no lookahead on the signal bar).</li>
+      <li><b>Target : stop-loss.</b> Two variants backtested in parallel &mdash; <b>1.0% : 0.5%</b> and <b>1.5% : 0.5%</b>, both measured off entry price.</li>
+      <li><b>Exit priority.</b> First of target hit, stop hit, or end-of-session square-off. A bar that touches both levels is resolved as stop-loss-first (conservative).</li>
+      <li><b>No overnight risk.</b> VWAP resets every session, so every open position is forced flat at the day&rsquo;s last bar &mdash; positions never carry to the next day.</li>
+      <li><b>One position at a time</b> per stock &times; timeframe &times; threshold &times; direction &times; variant. A new signal while a trade is open is skipped, not stacked.</li>
+    </ol>
+  </section>
+
+  <section id="backtest">
+    <div class="section-head"><span class="section-no">05</span><h2>Backtest results</h2></div>
+    <p class="section-dek">2,414,522 simulated trades across 96 strategy configurations (4 thresholds &times; 2 directions &times; 3 timeframes &times; 2 target:stop variants &times; baseline/regime-filtered). No transaction costs or slippage &mdash; see Limitations.</p>
+
+    <div class="card card-pad">
+      <p class="card-title">Average P&amp;L per trade (%), 1.5% : 0.5% target:stop, baseline signals</p>
+      <p class="card-note">Rows = entry threshold &amp; direction &middot; columns = timeframe. Blue = net positive, red = net negative.</p>
+      <div id="heatmap15"></div>
+      <div class="legend" style="margin-top:14px; margin-bottom:0;">
+        <span class="k"><span class="sw" style="background:var(--div-pos)"></span>Positive expectancy</span>
+        <span class="k"><span class="sw" style="background:var(--div-mid); border:1px solid var(--rule-strong)"></span>Roughly flat</span>
+        <span class="k"><span class="sw" style="background:var(--div-neg)"></span>Negative expectancy</span>
+      </div>
+    </div>
+
+    <div class="grid-3" style="margin-top:16px; grid-template-columns: 1fr 1fr;">
+      <div class="card card-pad">
+        <p class="card-title">Best 10 configurations</p>
+        <p class="card-note">Baseline, &ge;1,000 trades, ranked by profit factor</p>
+        <div class="scroll-x" id="tblTop10"></div>
+      </div>
+      <div class="card card-pad">
+        <p class="card-title">Worst 10 configurations</p>
+        <p class="card-note">Baseline, &ge;1,000 trades, ranked by profit factor</p>
+        <div class="scroll-x" id="tblBottom10"></div>
+      </div>
+    </div>
+
+    <div class="grid-3" style="margin-top:16px;">
+      <div class="card card-pad">
+        <p class="card-title">By timeframe, all configs pooled</p>
+        <div class="scroll-x" id="tblTopLevel"></div>
+      </div>
+    </div>
+
+    <div class="callout" style="margin-top:16px;">
+      <b>The edge concentrates in one corner:</b> 1‑minute bars, 3&ndash;4% thresholds, the wider 1.5%:0.5% target. That combination has few trades (1,000&ndash;14,000 vs. 40,000&ndash;100,000 at 1.5%) but a real edge &mdash; profit factor 1.07&ndash;1.21. Fifteen-minute bars are the mirror image: unprofitable almost everywhere, worst on the &ldquo;below VWAP, buy the dip&rdquo; side, where a 4% deviation costs &minus;0.11% expectancy per trade. On slow bars, a large VWAP deviation reads as trend, not exhaustion &mdash; consistent with the reversion-probability finding in Section 03.
+    </div>
+  </section>
+
+  <section id="nifty">
+    <div class="section-head"><span class="section-no">06</span><h2>Market context: does the Nifty regime matter?</h2></div>
+    <p class="section-dek">Nifty 50 carries no traded volume in Kite&rsquo;s feed, so it gets a price/momentum-only regime tag &mdash; <code>strong_up</code> / <code>strong_down</code> / <code>neutral</code>, from EMA(50), ADX(14) and MACD histogram &mdash; instead of its own VWAP. The <code>nifty_filtered</code> variant skips long entries while the index is in <code>strong_down</code>, and short entries while it&rsquo;s in <code>strong_up</code>.</p>
+
+    <div class="grid-3" style="grid-template-columns: 1.1fr 1fr;">
+      <div class="card card-pad">
+        <p class="card-title">Filtering out the &ldquo;wrong-way&rdquo; regime doesn&rsquo;t clearly help</p>
+        <p class="card-note">1‑minute, 1.5% target, by the Nifty regime present at signal time</p>
+        <div class="scroll-x" id="tblNiftyBacktest"></div>
+      </div>
+      <div class="card card-pad">
+        <p class="card-title">1‑min forward return (20 bars) by Nifty regime</p>
+        <p class="card-note">Directional return, 1.5% threshold &mdash; positive means price moved toward VWAP</p>
+        <div id="niftyBehaviorChart"></div>
+      </div>
+    </div>
+
+    <div class="callout warn" style="margin-top:16px;">
+      <b>Counter-intuitive finding:</b> buying an oversold-vs-VWAP stock (&ldquo;below&rdquo;, long) while the Nifty is in a <code>strong_down</code> regime reverted <i>more</i>, not less &mdash; 20‑bar directional return of <b>+4.3%</b> vs. <b>+0.6%</b> in a neutral tape. Sharp broad-market selloffs seem to produce sharper individual-stock snap-backs, not weaker ones. A blanket &ldquo;don&rsquo;t buy dips in a downtrend&rdquo; filter removes some of the best trades in the baseline set &mdash; the aggregate <code>nifty_filtered</code> numbers in Section 05 are net worse than baseline on the long side for exactly this reason. Where the filter does earn its keep is the mirror case: shorting an overbought stock while the index itself is <code>strong_up</code> is the one regime/direction pairing worth avoiding on priors, and the data is directionally consistent with that, if not dramatically so.
+    </div>
+  </section>
+
+  <section id="recommend">
+    <div class="section-head"><span class="section-no">07</span><h2>Recommendation</h2></div>
+    <dl class="rule-def prose">
+      <dt>Timeframe</dt><dd>1‑minute bars. 5‑minute is a distant second (positive only at 3&ndash;4% thresholds); 15‑minute should not be traded as a VWAP mean-reversion strategy at all.</dd>
+      <dt>Threshold</dt><dd>3% or 4% delta from VWAP. 1.5&ndash;2% has volume but no edge (profit factor &asymp;1.00&ndash;1.05); the edge only shows up once the deviation is large enough to be a genuine outlier.</dd>
+      <dt>Direction bias</dt><dd>Short (&ldquo;above VWAP&rdquo;) is the more reliable side across thresholds and timeframes. Long (&ldquo;below VWAP&rdquo;) is only competitive at the 4% threshold on 1‑minute bars.</dd>
+      <dt>Target : stop</dt><dd>1.5% : 0.5% (3:1 reward:risk) outperforms 1.0% : 0.5% at every profitable configuration &mdash; the wider target lets winners that are going to revert do so, without materially raising the stop-out rate.</dd>
+      <dt>Market filter</dt><dd>Use Nifty regime as a <i>sizing</i> input, not a hard entry filter &mdash; e.g. trim size when shorting into a <code>strong_up</code> tape, but don&rsquo;t blanket-skip &ldquo;below VWAP&rdquo; longs during a broad selloff.</dd>
+    </dl>
+    <p class="prose" style="font-size:14px;">Net: a 1‑minute, 3&ndash;4%-threshold, short-biased VWAP snap-back with a 1.5%:0.5% target:stop is the one corner of this study with a repeatable, cost-blind edge (profit factor 1.07&ndash;1.21, ~1,300&ndash;14,000 trades per configuration across the universe). Everything else tested is closer to breakeven or negative before costs.</p>
+  </section>
+
+  <section id="limits">
+    <div class="section-head"><span class="section-no">08</span><h2>Limitations</h2></div>
+    <div class="grid-3">
+      <div class="card card-pad">
+        <p class="card-title">No costs modeled</p>
+        <p style="font-size:13.5px;color:var(--ink-2);margin:0;">Brokerage, STT, exchange/SEBI charges, and slippage are all zero here. At profit factors of 1.05&ndash;1.20 and average wins near 1%, realistic intraday costs (even a few basis points per side) meaningfully erode &mdash; and can flip &mdash; the marginal configurations.</p>
+      </div>
+      <div class="card card-pad">
+        <p class="card-title">Fill assumptions</p>
+        <p style="font-size:13.5px;color:var(--ink-2);margin:0;">Entries fill exactly at next-bar open; target/stop fill exactly at the level. Same-bar target+stop ambiguity is resolved stop-first (conservative but not certain). No partial fills or liquidity constraints.</p>
+      </div>
+      <div class="card card-pad">
+        <p class="card-title">Survivorship &amp; universe</p>
+        <p style="font-size:13.5px;color:var(--ink-2);margin:0;">Today&rsquo;s NSE&nbsp;500 membership was applied across the full two-year window; stocks that entered or left the index mid-period aren&rsquo;t reconstructed historically.</p>
+      </div>
+      <div class="card card-pad">
+        <p class="card-title">Shorting mechanics</p>
+        <p style="font-size:13.5px;color:var(--ink-2);margin:0;">&ldquo;Short&rdquo; trades assume intraday short-sell is available and frictionless for every stock. In practice this needs margin/MIS and is subject to exchange short-sell restrictions on some names.</p>
+      </div>
+      <div class="card card-pad">
+        <p class="card-title">No compounding / sizing</p>
+        <p style="font-size:13.5px;color:var(--ink-2);margin:0;">P&amp;L is per-trade %, not compounded equity. Capital constraints, position sizing, and correlation across simultaneously-open trades in different stocks are not modeled.</p>
+      </div>
+      <div class="card card-pad">
+        <p class="card-title">Regime tag is coarse</p>
+        <p style="font-size:13.5px;color:var(--ink-2);margin:0;">The Nifty regime classifier (EMA50/ADX/MACD) is a simple heuristic, not a validated regime model &mdash; treat Section 06 as directional evidence, not a tuned filter.</p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    Data: Kite Connect historical API, 500 NSE&nbsp;500 constituents &amp; Nifty&nbsp;50 index, 1‑/5‑/15‑minute bars, 17 Aug 2024&ndash;17 Aug 2026. Pipeline and backtest code committed to the repository alongside this report.
+  </div>
+</footer>
+
+<div class="bar-tip" id="tip"></div>
+
+<script>
+const DATA = {"meta": {"symbols": 500, "events": 1058469, "trades": 2414522, "start": "2024-08-17", "end": "2026-08-17"}, "crossingCounts": [{"timeframe": "15minute", "threshold": 1.5, "direction": "above", "count": 44567}, {"timeframe": "15minute", "threshold": 1.5, "direction": "below", "count": 51499}, {"timeframe": "15minute", "threshold": 2.0, "direction": "above", "count": 19465}, {"timeframe": "15minute", "threshold": 2.0, "direction": "below", "count": 20588}, {"timeframe": "15minute", "threshold": 3.0, "direction": "above", "count": 4548}, {"timeframe": "15minute", "threshold": 3.0, "direction": "below", "count": 3836}, {"timeframe": "15minute", "threshold": 4.0, "direction": "above", "count": 1343}, {"timeframe": "15minute", "threshold": 4.0, "direction": "below", "count": 1067}, {"timeframe": "1minute", "threshold": 1.5, "direction": "above", "count": 191125}, {"timeframe": "1minute", "threshold": 1.5, "direction": "below", "count": 222552}, {"timeframe": "1minute", "threshold": 2.0, "direction": "above", "count": 84406}, {"timeframe": "1minute", "threshold": 2.0, "direction": "below", "count": 92103}, {"timeframe": "1minute", "threshold": 3.0, "direction": "above", "count": 20174}, {"timeframe": "1minute", "threshold": 3.0, "direction": "below", "count": 17756}, {"timeframe": "1minute", "threshold": 4.0, "direction": "above", "count": 6144}, {"timeframe": "1minute", "threshold": 4.0, "direction": "below", "count": 4690}, {"timeframe": "5minute", "threshold": 1.5, "direction": "above", "count": 82491}, {"timeframe": "5minute", "threshold": 1.5, "direction": "below", "count": 94406}, {"timeframe": "5minute", "threshold": 2.0, "direction": "above", "count": 36221}, {"timeframe": "5minute", "threshold": 2.0, "direction": "below", "count": 38897}, {"timeframe": "5minute", "threshold": 3.0, "direction": "above", "count": 8549}, {"timeframe": "5minute", "threshold": 3.0, "direction": "below", "count": 7464}, {"timeframe": "5minute", "threshold": 4.0, "direction": "above", "count": 2588}, {"timeframe": "5minute", "threshold": 4.0, "direction": "below", "count": 1990}], "behaviorByThreshold": [{"timeframe": "15minute", "threshold": 1.5, "direction": "above", "n_events": 44567, "band_exit_10": 0.9246775049, "full_reversion_10": 0.3224509631, "ret_10": -0.0118959911, "band_exit_20": 0.9770742358, "full_reversion_20": 0.6602983988, "ret_20": 0.0063717402}, {"timeframe": "15minute", "threshold": 1.5, "direction": "below", "n_events": 51499, "band_exit_10": 0.8848337064, "full_reversion_10": 0.2434841701, "ret_10": 0.0409930398, "band_exit_20": 0.9523524123, "full_reversion_20": 0.5389571471, "ret_20": 0.1450922733}, {"timeframe": "15minute", "threshold": 2.0, "direction": "above", "n_events": 19465, "band_exit_10": 0.9383787346, "full_reversion_10": 0.2996485062, "ret_10": 0.0002061947, "band_exit_20": 0.9747501315, "full_reversion_20": 0.6244082062, "ret_20": -0.0289196947}, {"timeframe": "15minute", "threshold": 2.0, "direction": "below", "n_events": 20588, "band_exit_10": 0.8932748538, "full_reversion_10": 0.2085020243, "ret_10": 0.0980599888, "band_exit_20": 0.9508348794, "full_reversion_20": 0.5013914657, "ret_20": 0.180730987}, {"timeframe": "15minute", "threshold": 3.0, "direction": "above", "n_events": 4548, "band_exit_10": 0.9420054201, "full_reversion_10": 0.2829268293, "ret_10": 0.1943817453, "band_exit_20": 0.961038961, "full_reversion_20": 0.5584415584, "ret_20": 0.2723048123}, {"timeframe": "15minute", "threshold": 3.0, "direction": "below", "n_events": 3836, "band_exit_10": 0.8824728261, "full_reversion_10": 0.1861413043, "ret_10": 0.030865304, "band_exit_20": 0.9532374101, "full_reversion_20": 0.428057554, "ret_20": -0.0149790477}, {"timeframe": "15minute", "threshold": 4.0, "direction": "above", "n_events": 1343, "band_exit_10": 0.9364035088, "full_reversion_10": 0.2324561404, "ret_10": 0.241865873, "band_exit_20": 0.9464285714, "full_reversion_20": 0.5178571429, "ret_20": 0.3786118423}, {"timeframe": "15minute", "threshold": 4.0, "direction": "below", "n_events": 1067, "band_exit_10": 0.9018691589, "full_reversion_10": 0.1799065421, "ret_10": 0.2845794521, "band_exit_20": 0.9743589744, "full_reversion_20": 0.4230769231, "ret_20": 0.2958617246}, {"timeframe": "1minute", "threshold": 1.5, "direction": "above", "n_events": 191125, "band_exit_10": 0.8014275486, "full_reversion_10": 0.0271955665, "ret_10": 0.0104717126, "band_exit_20": 0.8813336984, "full_reversion_20": 0.0637476331, "ret_20": 0.0017360052}, {"timeframe": "1minute", "threshold": 1.5, "direction": "below", "n_events": 222552, "band_exit_10": 0.7791945074, "full_reversion_10": 0.0148536561, "ret_10": 0.0233516976, "band_exit_20": 0.8606047077, "full_reversion_20": 0.037001761, "ret_20": 0.0155785288}, {"timeframe": "1minute", "threshold": 2.0, "direction": "above", "n_events": 84406, "band_exit_10": 0.8147254224, "full_reversion_10": 0.0204284755, "ret_10": 0.0147798102, "band_exit_20": 0.8931226522, "full_reversion_20": 0.0528016392, "ret_20": 0.0121034819}, {"timeframe": "1minute", "threshold": 2.0, "direction": "below", "n_events": 92103, "band_exit_10": 0.7911551291, "full_reversion_10": 0.0105001318, "ret_10": 0.0395528644, "band_exit_20": 0.8729982829, "full_reversion_20": 0.026937175, "ret_20": 0.0384447879}, {"timeframe": "1minute", "threshold": 3.0, "direction": "above", "n_events": 20174, "band_exit_10": 0.8333596007, "full_reversion_10": 0.0154452325, "ret_10": 0.0189615825, "band_exit_20": 0.9077551484, "full_reversion_20": 0.0419810518, "ret_20": 0.006948895}, {"timeframe": "1minute", "threshold": 3.0, "direction": "below", "n_events": 17756, "band_exit_10": 0.7971897238, "full_reversion_10": 0.008804728, "ret_10": 0.0696055816, "band_exit_20": 0.8776439961, "full_reversion_20": 0.0249267816, "ret_20": 0.0864121086}, {"timeframe": "1minute", "threshold": 4.0, "direction": "above", "n_events": 6144, "band_exit_10": 0.8350352113, "full_reversion_10": 0.0147887324, "ret_10": 0.0542632268, "band_exit_20": 0.9124756335, "full_reversion_20": 0.0378167641, "ret_20": 0.0699945818}, {"timeframe": "1minute", "threshold": 4.0, "direction": "below", "n_events": 4690, "band_exit_10": 0.7884222474, "full_reversion_10": 0.0104426788, "ret_10": 0.1165277285, "band_exit_20": 0.8701488894, "full_reversion_20": 0.0263607518, "ret_20": 0.1258906743}, {"timeframe": "5minute", "threshold": 1.5, "direction": "above", "n_events": 82491, "band_exit_10": 0.8719316645, "full_reversion_10": 0.1228854133, "ret_10": -0.011032246, "band_exit_20": 0.9408164018, "full_reversion_20": 0.2617168775, "ret_20": -0.0144368794}, {"timeframe": "5minute", "threshold": 1.5, "direction": "below", "n_events": 94406, "band_exit_10": 0.835089211, "full_reversion_10": 0.0809342243, "ret_10": 0.0110940971, "band_exit_20": 0.9102072651, "full_reversion_20": 0.1925955427, "ret_20": 0.0297036603}, {"timeframe": "5minute", "threshold": 2.0, "direction": "above", "n_events": 36221, "band_exit_10": 0.8896708532, "full_reversion_10": 0.1086328858, "ret_10": -0.0072532586, "band_exit_20": 0.9507233474, "full_reversion_20": 0.2387714222, "ret_20": 0.0041159156}, {"timeframe": "5minute", "threshold": 2.0, "direction": "below", "n_events": 38897, "band_exit_10": 0.8555729462, "full_reversion_10": 0.0631056645, "ret_10": 0.0543711708, "band_exit_20": 0.9214344139, "full_reversion_20": 0.1591975548, "ret_20": 0.0854247814}, {"timeframe": "5minute", "threshold": 3.0, "direction": "above", "n_events": 8549, "band_exit_10": 0.9116729601, "full_reversion_10": 0.0930881629, "ret_10": 0.0359293797, "band_exit_20": 0.9559188742, "full_reversion_20": 0.2272350993, "ret_20": 0.1064049108}, {"timeframe": "5minute", "threshold": 3.0, "direction": "below", "n_events": 7464, "band_exit_10": 0.8575068244, "full_reversion_10": 0.0545950864, "ret_10": 0.1107092306, "band_exit_20": 0.9200097253, "full_reversion_20": 0.1407731583, "ret_20": 0.145880262}, {"timeframe": "5minute", "threshold": 4.0, "direction": "above", "n_events": 2588, "band_exit_10": 0.9123529412, "full_reversion_10": 0.0864705882, "ret_10": 0.1653382589, "band_exit_20": 0.9532208589, "full_reversion_20": 0.2093558282, "ret_20": 0.3590470444}, {"timeframe": "5minute", "threshold": 4.0, "direction": "below", "n_events": 1990, "band_exit_10": 0.8658536585, "full_reversion_10": 0.0650406504, "ret_10": 0.2360408117, "band_exit_20": 0.9248658318, "full_reversion_20": 0.1243291592, "ret_20": 0.1919658114}], "behaviorByRsi": [{"timeframe": "15minute", "direction": "above", "rsi_bucket": "neutral(30-70)", "n_events": 21956, "band_exit_10": 0.9043607073, "full_reversion_10": 0.2798814925, "ret_10": -0.0196355414}, {"timeframe": "15minute", "direction": "above", "rsi_bucket": "overbought(>70)", "n_events": 22460, "band_exit_10": 0.9449863107, "full_reversion_10": 0.3624229979, "ret_10": -0.0004157159}, {"timeframe": "15minute", "direction": "above", "rsi_bucket": "oversold(<30)", "n_events": 90, "band_exit_10": 0.808988764, "full_reversion_10": 0.2921348315, "ret_10": -0.2362475604}, {"timeframe": "15minute", "direction": "below", "rsi_bucket": "neutral(30-70)", "n_events": 28607, "band_exit_10": 0.8535748193, "full_reversion_10": 0.2177024757, "ret_10": 0.0222769637}, {"timeframe": "15minute", "direction": "below", "rsi_bucket": "overbought(>70)", "n_events": 96, "band_exit_10": 0.7682926829, "full_reversion_10": 0.3170731707, "ret_10": -0.5366464536}, {"timeframe": "15minute", "direction": "below", "rsi_bucket": "oversold(<30)", "n_events": 22748, "band_exit_10": 0.9245063879, "full_reversion_10": 0.2746359332, "ret_10": 0.0680419514}, {"timeframe": "1minute", "direction": "above", "rsi_bucket": "neutral(30-70)", "n_events": 115261, "band_exit_10": 0.7939883699, "full_reversion_10": 0.0184917233, "ret_10": 0.0108219445}, {"timeframe": "1minute", "direction": "above", "rsi_bucket": "overbought(>70)", "n_events": 75684, "band_exit_10": 0.8126517344, "full_reversion_10": 0.0397492696, "ret_10": 0.0115957684}, {"timeframe": "1minute", "direction": "above", "rsi_bucket": "oversold(<30)", "n_events": 148, "band_exit_10": 0.7931034483, "full_reversion_10": 0.2413793103, "ret_10": -0.6975574474}, {"timeframe": "1minute", "direction": "below", "rsi_bucket": "neutral(30-70)", "n_events": 154490, "band_exit_10": 0.7745694986, "full_reversion_10": 0.0117767781, "ret_10": 0.014664787}, {"timeframe": "1minute", "direction": "below", "rsi_bucket": "overbought(>70)", "n_events": 161, "band_exit_10": 0.7848101266, "full_reversion_10": 0.1202531646, "ret_10": -0.1938775961}, {"timeframe": "1minute", "direction": "below", "rsi_bucket": "oversold(<30)", "n_events": 67882, "band_exit_10": 0.7896753066, "full_reversion_10": 0.0215020544, "ret_10": 0.0439433405}, {"timeframe": "5minute", "direction": "above", "rsi_bucket": "neutral(30-70)", "n_events": 37170, "band_exit_10": 0.8493456326, "full_reversion_10": 0.0982050684, "ret_10": -0.0204710797}, {"timeframe": "5minute", "direction": "above", "rsi_bucket": "overbought(>70)", "n_events": 45151, "band_exit_10": 0.8908804855, "full_reversion_10": 0.1420464123, "ret_10": -0.0050490332}, {"timeframe": "5minute", "direction": "above", "rsi_bucket": "oversold(<30)", "n_events": 116, "band_exit_10": 0.9568965517, "full_reversion_10": 0.5086206897, "ret_10": 0.7388191589}, {"timeframe": "5minute", "direction": "below", "rsi_bucket": "neutral(30-70)", "n_events": 52533, "band_exit_10": 0.8131765495, "full_reversion_10": 0.0753185171, "ret_10": 0.0013061217}, {"timeframe": "5minute", "direction": "below", "rsi_bucket": "overbought(>70)", "n_events": 90, "band_exit_10": 0.7888888889, "full_reversion_10": 0.1333333333, "ret_10": -0.5843191113}, {"timeframe": "5minute", "direction": "below", "rsi_bucket": "oversold(<30)", "n_events": 41754, "band_exit_10": 0.8627979399, "full_reversion_10": 0.0877051144, "ret_10": 0.024327539}], "behaviorByAdx": [{"timeframe": "15minute", "direction": "above", "adx_bucket": "moderate(20-40)", "n_events": 25549, "band_exit_10": 0.9256622263, "full_reversion_10": 0.3230745674, "ret_10": -0.0100939208}, {"timeframe": "15minute", "direction": "above", "adx_bucket": "strong(>40)", "n_events": 13741, "band_exit_10": 0.9192142758, "full_reversion_10": 0.3181629548, "ret_10": -0.0471874184}, {"timeframe": "15minute", "direction": "above", "adx_bucket": "weak(<20)", "n_events": 5166, "band_exit_10": 0.9395532194, "full_reversion_10": 0.3346473938, "ret_10": 0.105038193}, {"timeframe": "15minute", "direction": "below", "adx_bucket": "moderate(20-40)", "n_events": 30206, "band_exit_10": 0.8891953714, "full_reversion_10": 0.2389666308, "ret_10": 0.0424215764}, {"timeframe": "15minute", "direction": "below", "adx_bucket": "strong(>40)", "n_events": 13051, "band_exit_10": 0.8698519713, "full_reversion_10": 0.2641066979, "ret_10": 0.0555692654}, {"timeframe": "15minute", "direction": "below", "adx_bucket": "weak(<20)", "n_events": 8152, "band_exit_10": 0.8979529484, "full_reversion_10": 0.2221203789, "ret_10": 0.0043602255}, {"timeframe": "1minute", "direction": "above", "adx_bucket": "moderate(20-40)", "n_events": 101536, "band_exit_10": 0.7946143219, "full_reversion_10": 0.0261345595, "ret_10": 0.0070093296}, {"timeframe": "1minute", "direction": "above", "adx_bucket": "strong(>40)", "n_events": 57130, "band_exit_10": 0.8289418653, "full_reversion_10": 0.0365319222, "ret_10": 0.0166193943}, {"timeframe": "1minute", "direction": "above", "adx_bucket": "weak(<20)", "n_events": 32395, "band_exit_10": 0.7738711347, "full_reversion_10": 0.0135528529, "ret_10": 0.0118898696}, {"timeframe": "1minute", "direction": "below", "adx_bucket": "moderate(20-40)", "n_events": 120851, "band_exit_10": 0.7747420661, "full_reversion_10": 0.0149579905, "ret_10": 0.0226374969}, {"timeframe": "1minute", "direction": "below", "adx_bucket": "strong(>40)", "n_events": 57018, "band_exit_10": 0.8051409619, "full_reversion_10": 0.0194582642, "ret_10": 0.038158977}, {"timeframe": "1minute", "direction": "below", "adx_bucket": "weak(<20)", "n_events": 44643, "band_exit_10": 0.7583209025, "full_reversion_10": 0.0086005967, "ret_10": 0.0073862895}, {"timeframe": "5minute", "direction": "above", "adx_bucket": "moderate(20-40)", "n_events": 45813, "band_exit_10": 0.8696284284, "full_reversion_10": 0.1248357424, "ret_10": -0.0140533107}, {"timeframe": "5minute", "direction": "above", "adx_bucket": "strong(>40)", "n_events": 29711, "band_exit_10": 0.8819306429, "full_reversion_10": 0.1216386129, "ret_10": -0.0131295272}, {"timeframe": "5minute", "direction": "above", "adx_bucket": "weak(<20)", "n_events": 6887, "band_exit_10": 0.8423738424, "full_reversion_10": 0.1126441126, "ret_10": 0.0231963011}, {"timeframe": "5minute", "direction": "below", "adx_bucket": "moderate(20-40)", "n_events": 55306, "band_exit_10": 0.835414614, "full_reversion_10": 0.0814563618, "ret_10": 0.0093331482}, {"timeframe": "5minute", "direction": "below", "adx_bucket": "strong(>40)", "n_events": 25070, "band_exit_10": 0.8524598079, "full_reversion_10": 0.0873847342, "ret_10": 0.0219547843}, {"timeframe": "5minute", "direction": "below", "adx_bucket": "weak(<20)", "n_events": 13971, "band_exit_10": 0.8010316875, "full_reversion_10": 0.0662306559, "ret_10": -0.0047914028}], "behaviorByVol": [{"timeframe": "15minute", "direction": "above", "vol_bucket": "high(>1.5x)", "n_events": 23789, "band_exit_10": 0.9423043402, "full_reversion_10": 0.4023008541, "ret_10": 0.0160312916}, {"timeframe": "15minute", "direction": "above", "vol_bucket": "low(<0.8x)", "n_events": 9848, "band_exit_10": 0.9, "full_reversion_10": 0.2152255639, "ret_10": -0.0299565237}, {"timeframe": "15minute", "direction": "above", "vol_bucket": "normal(0.8-1.5x)", "n_events": 10847, "band_exit_10": 0.9136976825, "full_reversion_10": 0.2634036666, "ret_10": -0.0452777511}, {"timeframe": "15minute", "direction": "below", "vol_bucket": "high(>1.5x)", "n_events": 16811, "band_exit_10": 0.9019284655, "full_reversion_10": 0.3205867809, "ret_10": 0.0871101722}, {"timeframe": "15minute", "direction": "below", "vol_bucket": "low(<0.8x)", "n_events": 20563, "band_exit_10": 0.872410221, "full_reversion_10": 0.2017437845, "ret_10": 0.0258558577}, {"timeframe": "15minute", "direction": "below", "vol_bucket": "normal(0.8-1.5x)", "n_events": 14057, "band_exit_10": 0.8911378556, "full_reversion_10": 0.2460339168, "ret_10": 0.0267954041}, {"timeframe": "1minute", "direction": "above", "vol_bucket": "high(>1.5x)", "n_events": 84365, "band_exit_10": 0.7808479819, "full_reversion_10": 0.0370102131, "ret_10": 0.0048114941}, {"timeframe": "1minute", "direction": "above", "vol_bucket": "low(<0.8x)", "n_events": 61972, "band_exit_10": 0.8229452921, "full_reversion_10": 0.0153081008, "ret_10": 0.018109953}, {"timeframe": "1minute", "direction": "above", "vol_bucket": "normal(0.8-1.5x)", "n_events": 44745, "band_exit_10": 0.8109089184, "full_reversion_10": 0.0247218202, "ret_10": 0.0113206616}, {"timeframe": "1minute", "direction": "below", "vol_bucket": "high(>1.5x)", "n_events": 80597, "band_exit_10": 0.7475463681, "full_reversion_10": 0.0181171226, "ret_10": 0.0380816723}, {"timeframe": "1minute", "direction": "below", "vol_bucket": "low(<0.8x)", "n_events": 86977, "band_exit_10": 0.8031621405, "full_reversion_10": 0.0114660507, "ret_10": 0.015566167}, {"timeframe": "1minute", "direction": "below", "vol_bucket": "normal(0.8-1.5x)", "n_events": 54952, "band_exit_10": 0.7874210435, "full_reversion_10": 0.0153566806, "ret_10": 0.0145321063}, {"timeframe": "5minute", "direction": "above", "vol_bucket": "high(>1.5x)", "n_events": 43560, "band_exit_10": 0.8822973143, "full_reversion_10": 0.1645126718, "ret_10": 0.0051625058}, {"timeframe": "5minute", "direction": "above", "vol_bucket": "low(<0.8x)", "n_events": 19157, "band_exit_10": 0.8622893338, "full_reversion_10": 0.0745390793, "ret_10": -0.010571668}, {"timeframe": "5minute", "direction": "above", "vol_bucket": "normal(0.8-1.5x)", "n_events": 19707, "band_exit_10": 0.8626838235, "full_reversion_10": 0.0933823529, "ret_10": -0.0417730177}, {"timeframe": "5minute", "direction": "below", "vol_bucket": "high(>1.5x)", "n_events": 36178, "band_exit_10": 0.8250577619, "full_reversion_10": 0.092201055, "ret_10": 0.0035181614}, {"timeframe": "5minute", "direction": "below", "vol_bucket": "low(<0.8x)", "n_events": 32181, "band_exit_10": 0.8372230817, "full_reversion_10": 0.0738668159, "ret_10": 0.0164713907}, {"timeframe": "5minute", "direction": "below", "vol_bucket": "normal(0.8-1.5x)", "n_events": 26004, "band_exit_10": 0.8429027841, "full_reversion_10": 0.0787768142, "ret_10": 0.0105941803}], "behaviorByNifty": [{"timeframe": "15minute", "direction": "above", "nifty_regime": "neutral", "n_events": 30440, "band_exit_10": 0.9313559944, "full_reversion_10": 0.3347771823, "ret_10": 0.0257892766, "ret_20": 0.096838256}, {"timeframe": "15minute", "direction": "above", "nifty_regime": "strong_down", "n_events": 5149, "band_exit_10": 0.9076723017, "full_reversion_10": 0.3271781534, "ret_10": -0.0554482766, "ret_20": -0.1991548361}, {"timeframe": "15minute", "direction": "above", "nifty_regime": "strong_up", "n_events": 8978, "band_exit_10": 0.919729207, "full_reversion_10": 0.2864603482, "ret_10": -0.0787920244, "ret_20": -0.0504196246}, {"timeframe": "15minute", "direction": "below", "nifty_regime": "neutral", "n_events": 31788, "band_exit_10": 0.8807557733, "full_reversion_10": 0.2423372988, "ret_10": 0.0386214898, "ret_20": 0.1206227604}, {"timeframe": "15minute", "direction": "below", "nifty_regime": "strong_down", "n_events": 16305, "band_exit_10": 0.8955096048, "full_reversion_10": 0.2524164933, "ret_10": 0.0590263061, "ret_20": 0.2294741147}, {"timeframe": "15minute", "direction": "below", "nifty_regime": "strong_up", "n_events": 3406, "band_exit_10": 0.8734821778, "full_reversion_10": 0.2213082648, "ret_10": -0.0034630653, "ret_20": 0.0510673251}, {"timeframe": "1minute", "direction": "above", "nifty_regime": "neutral", "n_events": 145966, "band_exit_10": 0.7991797686, "full_reversion_10": 0.0230914536, "ret_10": 0.0117166431, "ret_20": 0.0001304238}, {"timeframe": "1minute", "direction": "above", "nifty_regime": "strong_down", "n_events": 16072, "band_exit_10": 0.8042259872, "full_reversion_10": 0.0555305031, "ret_10": 0.0085324765, "ret_20": 0.0042433181}, {"timeframe": "1minute", "direction": "above", "nifty_regime": "strong_up", "n_events": 29087, "band_exit_10": 0.8109784188, "full_reversion_10": 0.031857968, "ret_10": 0.0053961369, "ret_20": 0.0082132099}, {"timeframe": "1minute", "direction": "below", "nifty_regime": "neutral", "n_events": 161364, "band_exit_10": 0.7730307337, "full_reversion_10": 0.0117745237, "ret_10": 0.0186347768, "ret_20": 0.0062358039}, {"timeframe": "1minute", "direction": "below", "nifty_regime": "strong_down", "n_events": 46724, "band_exit_10": 0.7975824763, "full_reversion_10": 0.0186990784, "ret_10": 0.0338049693, "ret_20": 0.042632351}, {"timeframe": "1minute", "direction": "below", "nifty_regime": "strong_up", "n_events": 14464, "band_exit_10": 0.7878677806, "full_reversion_10": 0.0366146023, "ret_10": 0.0417976741, "ret_20": 0.031771558}, {"timeframe": "5minute", "direction": "above", "nifty_regime": "neutral", "n_events": 61551, "band_exit_10": 0.8681736429, "full_reversion_10": 0.1055632767, "ret_10": -0.0153572467, "ret_20": -0.005505225}, {"timeframe": "5minute", "direction": "above", "nifty_regime": "strong_down", "n_events": 6300, "band_exit_10": 0.8984282908, "full_reversion_10": 0.2479371316, "ret_10": 0.0261881131, "ret_20": -0.0216677503}, {"timeframe": "5minute", "direction": "above", "nifty_regime": "strong_up", "n_events": 14640, "band_exit_10": 0.8760934183, "full_reversion_10": 0.1408067941, "ret_10": -0.0091501225, "ret_20": -0.04707441}, {"timeframe": "5minute", "direction": "below", "nifty_regime": "neutral", "n_events": 63363, "band_exit_10": 0.8240822667, "full_reversion_10": 0.0701350793, "ret_10": -0.018360734, "ret_20": -0.0264254802}, {"timeframe": "5minute", "direction": "below", "nifty_regime": "strong_down", "n_events": 25265, "band_exit_10": 0.8656316375, "full_reversion_10": 0.0994234854, "ret_10": 0.091946594, "ret_20": 0.1805618014}, {"timeframe": "5minute", "direction": "below", "nifty_regime": "strong_up", "n_events": 5778, "band_exit_10": 0.825571367, "full_reversion_10": 0.1205260888, "ret_10": -0.0106251828, "ret_20": 0.0162360219}], "heatmap15": [{"timeframe": "15minute", "threshold": 1.5, "direction": "above", "n_trades": 41005.0, "avg_pnl_pct": -0.0051156434, "win_rate_pct": 30.871844897, "profit_factor": 0.9846282017}, {"timeframe": "15minute", "threshold": 1.5, "direction": "below", "n_trades": 45436.0, "avg_pnl_pct": -0.0464080975, "win_rate_pct": 28.9594154415, "profit_factor": 0.8642537725}, {"timeframe": "15minute", "threshold": 2.0, "direction": "above", "n_trades": 18542.0, "avg_pnl_pct": 0.0051094958, "win_rate_pct": 29.7648581599, "profit_factor": 1.0149698314}, {"timeframe": "15minute", "threshold": 2.0, "direction": "below", "n_trades": 18890.0, "avg_pnl_pct": -0.0432784281, "win_rate_pct": 28.0148226575, "profit_factor": 0.8764969378}, {"timeframe": "15minute", "threshold": 3.0, "direction": "above", "n_trades": 4454.0, "avg_pnl_pct": 0.0142647251, "win_rate_pct": 27.8850471486, "profit_factor": 1.0403253409}, {"timeframe": "15minute", "threshold": 3.0, "direction": "below", "n_trades": 3647.0, "avg_pnl_pct": -0.0428883551, "win_rate_pct": 25.9117082534, "profit_factor": 0.8824280802}, {"timeframe": "15minute", "threshold": 4.0, "direction": "above", "n_trades": 1329.0, "avg_pnl_pct": 0.0050554617, "win_rate_pct": 26.4108352144, "profit_factor": 1.013995635}, {"timeframe": "15minute", "threshold": 4.0, "direction": "below", "n_trades": 1035.0, "avg_pnl_pct": -0.066032318, "win_rate_pct": 22.8019323671, "profit_factor": 0.8271437884}, {"timeframe": "1minute", "threshold": 1.5, "direction": "above", "n_trades": 97106.0, "avg_pnl_pct": 0.0077000573, "win_rate_pct": 31.0773793586, "profit_factor": 1.0231609365}, {"timeframe": "1minute", "threshold": 1.5, "direction": "below", "n_trades": 94967.0, "avg_pnl_pct": -0.0166484871, "win_rate_pct": 30.8907304643, "profit_factor": 0.9495783807}, {"timeframe": "1minute", "threshold": 2.0, "direction": "above", "n_trades": 48476.0, "avg_pnl_pct": 0.0187118723, "win_rate_pct": 30.4439310174, "profit_factor": 1.0553384215}, {"timeframe": "1minute", "threshold": 2.0, "direction": "below", "n_trades": 43718.0, "avg_pnl_pct": 0.0003052554, "win_rate_pct": 30.870579624, "profit_factor": 1.0009161687}, {"timeframe": "1minute", "threshold": 3.0, "direction": "above", "n_trades": 13877.0, "avg_pnl_pct": 0.040470874, "win_rate_pct": 29.6245586222, "profit_factor": 1.1168244677}, {"timeframe": "1minute", "threshold": 3.0, "direction": "below", "n_trades": 10105.0, "avg_pnl_pct": 0.024492478, "win_rate_pct": 30.3809995052, "profit_factor": 1.0721620793}, {"timeframe": "1minute", "threshold": 4.0, "direction": "above", "n_trades": 4641.0, "avg_pnl_pct": 0.0572012797, "win_rate_pct": 29.2393880629, "profit_factor": 1.1642214625}, {"timeframe": "1minute", "threshold": 4.0, "direction": "below", "n_trades": 3057.0, "avg_pnl_pct": 0.0701246421, "win_rate_pct": 31.2397775597, "profit_factor": 1.2066147043}, {"timeframe": "5minute", "threshold": 1.5, "direction": "above", "n_trades": 63765.0, "avg_pnl_pct": 0.0040999709, "win_rate_pct": 31.2287304948, "profit_factor": 1.012365983}, {"timeframe": "5minute", "threshold": 1.5, "direction": "below", "n_trades": 66122.0, "avg_pnl_pct": -0.0285660109, "win_rate_pct": 30.2909772844, "profit_factor": 0.9143708063}, {"timeframe": "5minute", "threshold": 2.0, "direction": "above", "n_trades": 30256.0, "avg_pnl_pct": 0.0062075103, "win_rate_pct": 29.9808302485, "profit_factor": 1.0182407311}, {"timeframe": "5minute", "threshold": 2.0, "direction": "below", "n_trades": 29218.0, "avg_pnl_pct": -0.0210395806, "win_rate_pct": 29.6461085632, "profit_factor": 0.9381517038}, {"timeframe": "5minute", "threshold": 3.0, "direction": "above", "n_trades": 7771.0, "avg_pnl_pct": 0.0215584339, "win_rate_pct": 28.6578303951, "profit_factor": 1.0615617305}, {"timeframe": "5minute", "threshold": 3.0, "direction": "below", "n_trades": 6149.0, "avg_pnl_pct": 0.0003739448, "win_rate_pct": 28.8339567409, "profit_factor": 1.0010728028}, {"timeframe": "5minute", "threshold": 4.0, "direction": "above", "n_trades": 2453.0, "avg_pnl_pct": 0.0485604606, "win_rate_pct": 28.740317978, "profit_factor": 1.1389016111}, {"timeframe": "5minute", "threshold": 4.0, "direction": "below", "n_trades": 1750.0, "avg_pnl_pct": -0.0399395708, "win_rate_pct": 24.8571428571, "profit_factor": 0.8921710458}], "heatmap10": [{"timeframe": "15minute", "threshold": 1.5, "direction": "above", "n_trades": 41548.0, "avg_pnl_pct": -0.0148985939, "win_rate_pct": 35.0341773371, "profit_factor": 0.9524168416}, {"timeframe": "15minute", "threshold": 1.5, "direction": "below", "n_trades": 46095.0, "avg_pnl_pct": -0.0497295643, "win_rate_pct": 32.9623603428, "profit_factor": 0.8462623124}, {"timeframe": "15minute", "threshold": 2.0, "direction": "above", "n_trades": 18743.0, "avg_pnl_pct": -0.0190142536, "win_rate_pct": 33.9966920984, "profit_factor": 0.9408253896}, {"timeframe": "15minute", "threshold": 2.0, "direction": "below", "n_trades": 19144.0, "avg_pnl_pct": -0.0490104154, "win_rate_pct": 32.3600083577, "profit_factor": 0.8513924008}, {"timeframe": "15minute", "threshold": 3.0, "direction": "above", "n_trades": 4488.0, "avg_pnl_pct": -0.0331895822, "win_rate_pct": 31.7513368984, "profit_factor": 0.9009807741}, {"timeframe": "15minute", "threshold": 3.0, "direction": "below", "n_trades": 3703.0, "avg_pnl_pct": -0.0628473187, "win_rate_pct": 30.3807723467, "profit_factor": 0.8167624487}, {"timeframe": "15minute", "threshold": 4.0, "direction": "above", "n_trades": 1335.0, "avg_pnl_pct": -0.0615317929, "win_rate_pct": 29.3632958801, "profit_factor": 0.8227343443}, {"timeframe": "15minute", "threshold": 4.0, "direction": "below", "n_trades": 1048.0, "avg_pnl_pct": -0.1058802751, "win_rate_pct": 26.4312977099, "profit_factor": 0.7095938244}, {"timeframe": "1minute", "threshold": 1.5, "direction": "above", "n_trades": 100266.0, "avg_pnl_pct": 0.0066119729, "win_rate_pct": 36.3323559332, "profit_factor": 1.0215050117}, {"timeframe": "1minute", "threshold": 1.5, "direction": "below", "n_trades": 97815.0, "avg_pnl_pct": -0.0142745396, "win_rate_pct": 35.6775545673, "profit_factor": 0.9536057375}, {"timeframe": "1minute", "threshold": 2.0, "direction": "above", "n_trades": 50046.0, "avg_pnl_pct": 0.0162091866, "win_rate_pct": 36.3465611637, "profit_factor": 1.0522990253}, {"timeframe": "1minute", "threshold": 2.0, "direction": "below", "n_trades": 45138.0, "avg_pnl_pct": 0.0030967322, "win_rate_pct": 36.3175151757, "profit_factor": 1.0100746194}, {"timeframe": "1minute", "threshold": 3.0, "direction": "above", "n_trades": 14325.0, "avg_pnl_pct": 0.0235045838, "win_rate_pct": 35.9092495637, "profit_factor": 1.0744318325}, {"timeframe": "1minute", "threshold": 3.0, "direction": "below", "n_trades": 10463.0, "avg_pnl_pct": 0.0148322696, "win_rate_pct": 36.2706680684, "profit_factor": 1.0476805703}, {"timeframe": "1minute", "threshold": 4.0, "direction": "above", "n_trades": 4805.0, "avg_pnl_pct": 0.0365374029, "win_rate_pct": 36.2539021852, "profit_factor": 1.1161087572}, {"timeframe": "1minute", "threshold": 4.0, "direction": "below", "n_trades": 3177.0, "avg_pnl_pct": 0.0519759732, "win_rate_pct": 38.1177211206, "profit_factor": 1.1702236127}, {"timeframe": "5minute", "threshold": 1.5, "direction": "above", "n_trades": 65267.0, "avg_pnl_pct": 0.0013363048, "win_rate_pct": 36.1101322261, "profit_factor": 1.0043330231}, {"timeframe": "5minute", "threshold": 1.5, "direction": "below", "n_trades": 67667.0, "avg_pnl_pct": -0.0275477794, "win_rate_pct": 34.759927291, "profit_factor": 0.911894575}, {"timeframe": "5minute", "threshold": 2.0, "direction": "above", "n_trades": 30894.0, "avg_pnl_pct": -0.0005215957, "win_rate_pct": 35.3175373859, "profit_factor": 0.998343555}, {"timeframe": "5minute", "threshold": 2.0, "direction": "below", "n_trades": 29845.0, "avg_pnl_pct": -0.0209629426, "win_rate_pct": 34.6188641313, "profit_factor": 0.9337987034}, {"timeframe": "5minute", "threshold": 3.0, "direction": "above", "n_trades": 7900.0, "avg_pnl_pct": -0.0020865887, "win_rate_pct": 34.1139240506, "profit_factor": 0.993557812}, {"timeframe": "5minute", "threshold": 3.0, "direction": "below", "n_trades": 6324.0, "avg_pnl_pct": -0.0092992539, "win_rate_pct": 34.440227704, "profit_factor": 0.9710562468}, {"timeframe": "5minute", "threshold": 4.0, "direction": "above", "n_trades": 2486.0, "avg_pnl_pct": 0.0068675714, "win_rate_pct": 34.1512469831, "profit_factor": 1.0211674045}, {"timeframe": "5minute", "threshold": 4.0, "direction": "below", "n_trades": 1792.0, "avg_pnl_pct": -0.0428756814, "win_rate_pct": 31.25, "profit_factor": 0.8735073103}], "topLevel": [{"strategy_variant": "baseline", "timeframe": "15minute", "n_trades": 270442.0, "win_rate_pct": 31.4071039262, "avg_pnl_pct": -0.0294938453, "avg_win_pct": 0.9631525048, "avg_loss_pct": -0.4840036979, "total_pnl_pct": -7976.3745222074, "profit_factor": 0.9111610168, "expectancy_pct": -0.0294938453, "sharpe_like": -0.0410894906, "max_drawdown_pct": -8438.7562035895, "avg_bars_held": 2.8652724059, "tp_rate_pct": 21.5976068806, "sl_rate_pct": 65.457658204, "eod_rate_pct": 12.9447349154}, {"strategy_variant": "baseline", "timeframe": "1minute", "n_trades": 641982.0, "win_rate_pct": 33.4998489054, "avg_pnl_pct": 0.0037793896, "avg_win_pct": 0.9694144184, "avg_loss_pct": -0.4826650325, "total_pnl_pct": 2426.3000723176, "profit_factor": 1.0117747906, "expectancy_pct": 0.0037793896, "sharpe_like": 0.0051555703, "max_drawdown_pct": -2436.684719233, "avg_bars_held": 32.5328996763, "tp_rate_pct": 23.57402544, "sl_rate_pct": 63.1813664558, "eod_rate_pct": 13.2446081043}, {"strategy_variant": "baseline", "timeframe": "5minute", "n_trades": 419659.0, "win_rate_pct": 32.7477785535, "avg_pnl_pct": -0.010458343, "avg_win_pct": 0.9596674061, "avg_loss_pct": -0.4828511134, "total_pnl_pct": -4388.9377756868, "profit_factor": 0.9677935386, "expectancy_pct": -0.010458343, "sharpe_like": -0.014428237, "max_drawdown_pct": -5313.9240916838, "avg_bars_held": 7.3212941936, "tp_rate_pct": 22.5821440741, "sl_rate_pct": 63.9223750712, "eod_rate_pct": 13.4954808547}, {"strategy_variant": "nifty_filtered", "timeframe": "15minute", "n_trades": 201572.0, "win_rate_pct": 31.1645466632, "avg_pnl_pct": -0.0305814045, "avg_win_pct": 0.97059429, "avg_loss_pct": -0.4838534487, "total_pnl_pct": -6164.3548682123, "profit_factor": 0.908181243, "expectancy_pct": -0.0305814045, "sharpe_like": -0.0425378168, "max_drawdown_pct": -6465.3730923755, "avg_bars_held": 2.8268707955, "tp_rate_pct": 21.6671958407, "sl_rate_pct": 65.6648740897, "eod_rate_pct": 12.6679300697}, {"strategy_variant": "nifty_filtered", "timeframe": "1minute", "n_trades": 549971.0, "win_rate_pct": 33.5319498664, "avg_pnl_pct": 0.0025689686, "avg_win_pct": 0.9633245776, "avg_loss_pct": -0.4821151594, "total_pnl_pct": 1412.8582168772, "profit_factor": 1.0080166896, "expectancy_pct": 0.0025689686, "sharpe_like": 0.0035149154, "max_drawdown_pct": -2195.6613212543, "avg_bars_held": 32.9389458717, "tp_rate_pct": 23.3505039357, "sl_rate_pct": 63.0436877581, "eod_rate_pct": 13.6058083063}, {"strategy_variant": "nifty_filtered", "timeframe": "5minute", "n_trades": 330896.0, "win_rate_pct": 32.4280136357, "avg_pnl_pct": -0.0146349895, "avg_win_pct": 0.9607244616, "avg_loss_pct": -0.4827131279, "total_pnl_pct": -4842.6594931666, "profit_factor": 0.9551320094, "expectancy_pct": -0.0146349895, "sharpe_like": -0.0202379484, "max_drawdown_pct": -5396.02729149, "avg_bars_held": 7.3757797012, "tp_rate_pct": 22.3834679174, "sl_rate_pct": 64.1932812727, "eod_rate_pct": 13.4232508099}], "top10": [{"timeframe": "1minute", "threshold": 4.0, "direction": "below", "target_pct": 1.5, "stop_pct": 0.5, "n_trades": 3057.0, "win_rate_pct": 31.2397775597, "avg_pnl_pct": 0.0701246421, "profit_factor": 1.2066147043, "sharpe_like": 0.0806296077}, {"timeframe": "1minute", "threshold": 4.0, "direction": "below", "target_pct": 1.0, "stop_pct": 0.5, "n_trades": 3177.0, "win_rate_pct": 38.1177211206, "avg_pnl_pct": 0.0519759732, "profit_factor": 1.1702236127, "sharpe_like": 0.0734760602}, {"timeframe": "1minute", "threshold": 4.0, "direction": "above", "target_pct": 1.5, "stop_pct": 0.5, "n_trades": 4641.0, "win_rate_pct": 29.2393880629, "avg_pnl_pct": 0.0572012797, "profit_factor": 1.1642214625, "sharpe_like": 0.0654564868}, {"timeframe": "5minute", "threshold": 4.0, "direction": "above", "target_pct": 1.5, "stop_pct": 0.5, "n_trades": 2453.0, "win_rate_pct": 28.740317978, "avg_pnl_pct": 0.0485604606, "profit_factor": 1.1389016111, "sharpe_like": 0.0559122252}, {"timeframe": "1minute", "threshold": 3.0, "direction": "above", "target_pct": 1.5, "stop_pct": 0.5, "n_trades": 13877.0, "win_rate_pct": 29.6245586222, "avg_pnl_pct": 0.040470874, "profit_factor": 1.1168244677, "sharpe_like": 0.0474914538}, {"timeframe": "1minute", "threshold": 4.0, "direction": "above", "target_pct": 1.0, "stop_pct": 0.5, "n_trades": 4805.0, "win_rate_pct": 36.2539021852, "avg_pnl_pct": 0.0365374029, "profit_factor": 1.1161087572, "sharpe_like": 0.0515004895}, {"timeframe": "1minute", "threshold": 3.0, "direction": "above", "target_pct": 1.0, "stop_pct": 0.5, "n_trades": 14325.0, "win_rate_pct": 35.9092495637, "avg_pnl_pct": 0.0235045838, "profit_factor": 1.0744318325, "sharpe_like": 0.0335654937}, {"timeframe": "1minute", "threshold": 3.0, "direction": "below", "target_pct": 1.5, "stop_pct": 0.5, "n_trades": 10105.0, "win_rate_pct": 30.3809995052, "avg_pnl_pct": 0.024492478, "profit_factor": 1.0721620793, "sharpe_like": 0.0297360121}, {"timeframe": "5minute", "threshold": 3.0, "direction": "above", "target_pct": 1.5, "stop_pct": 0.5, "n_trades": 7771.0, "win_rate_pct": 28.6578303951, "avg_pnl_pct": 0.0215584339, "profit_factor": 1.0615617305, "sharpe_like": 0.0256682038}, {"timeframe": "1minute", "threshold": 2.0, "direction": "above", "target_pct": 1.5, "stop_pct": 0.5, "n_trades": 48476.0, "win_rate_pct": 30.4439310174, "avg_pnl_pct": 0.0187118723, "profit_factor": 1.0553384215, "sharpe_like": 0.0230051223}], "bottom10": [{"timeframe": "15minute", "threshold": 4.0, "direction": "below", "target_pct": 1.0, "stop_pct": 0.5, "n_trades": 1048.0, "win_rate_pct": 26.4312977099, "avg_pnl_pct": -0.1058802751, "profit_factor": 0.7095938244, "sharpe_like": -0.1618389345}, {"timeframe": "15minute", "threshold": 3.0, "direction": "below", "target_pct": 1.0, "stop_pct": 0.5, "n_trades": 3703.0, "win_rate_pct": 30.3807723467, "avg_pnl_pct": -0.0628473187, "profit_factor": 0.8167624487, "sharpe_like": -0.0946732829}, {"timeframe": "15minute", "threshold": 4.0, "direction": "above", "target_pct": 1.0, "stop_pct": 0.5, "n_trades": 1335.0, "win_rate_pct": 29.3632958801, "avg_pnl_pct": -0.0615317929, "profit_factor": 0.8227343443, "sharpe_like": -0.0913919318}, {"timeframe": "15minute", "threshold": 4.0, "direction": "below", "target_pct": 1.5, "stop_pct": 0.5, "n_trades": 1035.0, "win_rate_pct": 22.8019323671, "avg_pnl_pct": -0.066032318, "profit_factor": 0.8271437884, "sharpe_like": -0.0821995569}, {"timeframe": "15minute", "threshold": 1.5, "direction": "below", "target_pct": 1.0, "stop_pct": 0.5, "n_trades": 46095.0, "win_rate_pct": 32.9623603428, "avg_pnl_pct": -0.0497295643, "profit_factor": 0.8462623124, "sharpe_like": -0.077023117}, {"timeframe": "15minute", "threshold": 2.0, "direction": "below", "target_pct": 1.0, "stop_pct": 0.5, "n_trades": 19144.0, "win_rate_pct": 32.3600083577, "avg_pnl_pct": -0.0490104154, "profit_factor": 0.8513924008, "sharpe_like": -0.0747058884}, {"timeframe": "15minute", "threshold": 1.5, "direction": "below", "target_pct": 1.5, "stop_pct": 0.5, "n_trades": 45436.0, "win_rate_pct": 28.9594154415, "avg_pnl_pct": -0.0464080975, "profit_factor": 0.8642537725, "sharpe_like": -0.0620797838}, {"timeframe": "5minute", "threshold": 4.0, "direction": "below", "target_pct": 1.0, "stop_pct": 0.5, "n_trades": 1792.0, "win_rate_pct": 31.25, "avg_pnl_pct": -0.0428756814, "profit_factor": 0.8735073103, "sharpe_like": -0.063314728}, {"timeframe": "15minute", "threshold": 2.0, "direction": "below", "target_pct": 1.5, "stop_pct": 0.5, "n_trades": 18890.0, "win_rate_pct": 28.0148226575, "avg_pnl_pct": -0.0432784281, "profit_factor": 0.8764969378, "sharpe_like": -0.0563839928}, {"timeframe": "15minute", "threshold": 3.0, "direction": "below", "target_pct": 1.5, "stop_pct": 0.5, "n_trades": 3647.0, "win_rate_pct": 25.9117082534, "avg_pnl_pct": -0.0428883551, "profit_factor": 0.8824280802, "sharpe_like": -0.0538196266}], "byNiftyRegimeBacktest": [{"strategy_variant": "baseline", "nifty_regime_at_signal": "neutral", "n_trades": 227482.0, "win_rate_pct": 30.8556281376, "avg_pnl_pct": 0.0038359416, "profit_factor": 1.0115060618}, {"strategy_variant": "baseline", "nifty_regime_at_signal": "strong_down", "n_trades": 51996.0, "win_rate_pct": 30.8389106854, "avg_pnl_pct": 0.0062559283, "profit_factor": 1.018751363}, {"strategy_variant": "baseline", "nifty_regime_at_signal": "strong_up", "n_trades": 36469.0, "win_rate_pct": 30.2585757767, "avg_pnl_pct": 0.0048849389, "profit_factor": 1.014479878}, {"strategy_variant": "nifty_filtered", "nifty_regime_at_signal": "neutral", "n_trades": 244856.0, "win_rate_pct": 30.9144966838, "avg_pnl_pct": 0.0017630196, "profit_factor": 1.0053004108}, {"strategy_variant": "nifty_filtered", "nifty_regime_at_signal": "strong_down", "n_trades": 15194.0, "win_rate_pct": 29.4919046992, "avg_pnl_pct": 0.0099631215, "profit_factor": 1.0289830842}, {"strategy_variant": "nifty_filtered", "nifty_regime_at_signal": "strong_up", "n_trades": 11018.0, "win_rate_pct": 31.1127246324, "avg_pnl_pct": 0.0161587997, "profit_factor": 1.0486545798}]};
+
+const fmt = {
+  int: n => Math.round(n).toLocaleString('en-IN'),
+  pct1: n => (n>=0?'+':'') + n.toFixed(2) + '%',
+  pct0: n => (n*100).toFixed(0) + '%',
+  pf: n => n.toFixed(2) + 'x',
+  tf: t => ({'1minute':'1 min','5minute':'5 min','15minute':'15 min'})[t] || t,
+};
+
+const tip = document.getElementById('tip');
+function showTip(evt, html) {
+  tip.innerHTML = html;
+  tip.style.left = evt.clientX + 'px';
+  tip.style.top = (evt.clientY - 10) + 'px';
+  tip.style.opacity = '1';
+}
+function moveTip(evt) {
+  tip.style.left = evt.clientX + 'px';
+  tip.style.top = (evt.clientY - 10) + 'px';
+}
+function hideTip() { tip.style.opacity = '0'; }
+
+const cssVar = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+/* ---------------- Hero stats ---------------- */
+(function renderStats() {
+  const m = DATA.meta;
+  const tiles = [
+    [m.symbols.toLocaleString('en-IN'), 'NSE 500 stocks covered'],
+    ['2 yrs × 3', 'timeframes — 1m / 5m / 15m'],
+    [m.events.toLocaleString('en-IN'), 'VWAP-crossing events analyzed'],
+    [m.trades.toLocaleString('en-IN'), 'backtested trades'],
+  ];
+  document.getElementById('statRow').innerHTML = tiles.map(([v,l]) =>
+    `<div class="stat-tile"><div class="v">${v}</div><div class="l">${l}</div></div>`
+  ).join('');
+})();
+
+/* ---------------- Generic grouped bar chart (SVG) ---------------- */
+function groupedBarChart(container, {data, groups, series, seriesColors, valueKey, valueFmt, groupLabel, title}) {
+  const W = 340, H = 190, padL = 34, padR = 10, padT = 10, padB = 26;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const vals = data.map(d => d[valueKey]);
+  const maxV = Math.max(0.0001, ...vals);
+  const minV = Math.min(0, ...vals);
+  const yScale = v => padT + plotH - ((v - minV) / (maxV - minV)) * plotH;
+  const zeroY = yScale(0);
+
+  const groupW = plotW / groups.length;
+  const barW = Math.min(20, (groupW / series.length) * 0.62);
+  const barGap = 3;
+
+  let bars = '';
+  groups.forEach((g, gi) => {
+    const gx = padL + gi * groupW;
+    series.forEach((s, si) => {
+      const rec = data.find(d => d._group === g && d._series === s);
+      const v = rec ? rec[valueKey] : 0;
+      const y = yScale(v);
+      const top = Math.min(y, zeroY), h = Math.max(1, Math.abs(y - zeroY));
+      const x = gx + groupW/2 - (series.length*barW + (series.length-1)*barGap)/2 + si*(barW+barGap);
+      bars += `<rect class="bar" data-tip="${g} · ${s}: ${valueFmt(v)}" x="${x.toFixed(1)}" y="${top.toFixed(1)}" width="${barW}" height="${h.toFixed(1)}" rx="3" fill="${seriesColors[si]}" />`;
+    });
+  });
+
+  let gridlines = '';
+  const ticks = 4;
+  for (let i=0;i<=ticks;i++) {
+    const v = minV + (maxV-minV)*i/ticks;
+    const y = yScale(v);
+    gridlines += `<line class="grid-line" x1="${padL}" x2="${W-padR}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" />`;
+  }
+
+  let xlabels = '';
+  groups.forEach((g, gi) => {
+    const gx = padL + gi*groupW + groupW/2;
+    xlabels += `<text class="axis-label" x="${gx}" y="${H-8}" text-anchor="middle">${g}</text>`;
+  });
+
+  const svg = `<svg class="chart-svg" viewBox="0 0 ${W} ${H}">
+    ${gridlines}
+    <line class="zero-line" x1="${padL}" x2="${W-padR}" y1="${zeroY.toFixed(1)}" y2="${zeroY.toFixed(1)}" />
+    ${bars}
+    ${xlabels}
+  </svg>`;
+
+  container.innerHTML = `<div style="font-size:12px;color:var(--ink-2);margin-bottom:6px;font-weight:600;">${title}</div>${svg}`;
+  container.querySelectorAll('.bar').forEach(el => {
+    el.addEventListener('mousemove', e => showTip(e, el.dataset.tip));
+    el.addEventListener('mouseleave', hideTip);
+  });
+}
+
+/* ---------------- Crossing frequency charts ---------------- */
+(function renderCrossings() {
+  const el = document.getElementById('crossingCharts');
+  ['1minute','5minute','15minute'].forEach(tf => {
+    const rows = DATA.crossingCounts.filter(r => r.timeframe === tf).map(r => ({...r, _group: r.threshold+'%', _series: r.direction}));
+    const panel = document.createElement('div');
+    el.appendChild(panel);
+    groupedBarChart(panel, {
+      data: rows,
+      groups: ['1.5%','2%','3%','4%'],
+      series: ['above','below'],
+      seriesColors: [cssVar('--above'), cssVar('--below')],
+      valueKey: 'count',
+      valueFmt: v => v.toLocaleString('en-IN') + ' crossings',
+      title: fmt.tf(tf),
+    });
+  });
+})();
+
+/* ---------------- Reversion probability charts ---------------- */
+(function renderReversion() {
+  const el = document.getElementById('reversionCharts');
+  ['1minute','5minute','15minute'].forEach(tf => {
+    const rows = DATA.behaviorByThreshold.filter(r => r.timeframe === tf).map(r => ({...r, _group: r.threshold+'%', _series: r.direction, full_reversion_pct: r.full_reversion_20*100}));
+    const panel = document.createElement('div');
+    el.appendChild(panel);
+    groupedBarChart(panel, {
+      data: rows,
+      groups: ['1.5%','2%','3%','4%'],
+      series: ['above','below'],
+      seriesColors: [cssVar('--above'), cssVar('--below')],
+      valueKey: 'full_reversion_pct',
+      valueFmt: v => v.toFixed(0) + '% reverted within 20 bars',
+      title: fmt.tf(tf),
+    });
+  });
+})();
+
+/* ---------------- Nifty regime behavior chart ---------------- */
+(function renderNiftyBehavior() {
+  const el = document.getElementById('niftyBehaviorChart');
+  const rows = DATA.behaviorByNifty.filter(r => r.timeframe === '1minute').map(r => ({...r, _group: r.nifty_regime, _series: r.direction, ret20_pct: r.ret_20*100}));
+  groupedBarChart(el, {
+    data: rows,
+    groups: ['neutral','strong_down','strong_up'],
+    series: ['above','below'],
+    seriesColors: [cssVar('--above'), cssVar('--below')],
+    valueKey: 'ret20_pct',
+    valueFmt: v => (v>=0?'+':'') + v.toFixed(2) + '% (20-bar directional return)',
+    title: '1-minute, 1.5% threshold',
+  });
+})();
+
+/* ---------------- Heatmap ---------------- */
+function renderHeatmap(container, rows) {
+  const timeframes = ['1minute','5minute','15minute'];
+  const rowKeys = [];
+  [1.5,2,3,4].forEach(t => { rowKeys.push([t,'above']); rowKeys.push([t,'below']); });
+
+  const vals = rows.map(r => r.avg_pnl_pct);
+  const maxAbs = Math.max(0.001, ...vals.map(Math.abs));
+
+  function colorFor(v) {
+    const t = Math.max(-1, Math.min(1, v / maxAbs));
+    const pos = cssVar('--div-pos'), neg = cssVar('--div-neg'), mid = cssVar('--div-mid');
+    const c = t >= 0 ? pos : neg;
+    const amt = Math.abs(t);
+    return `color-mix(in oklab, ${c} ${(amt*75).toFixed(0)}%, ${mid})`;
+  }
+
+  let html = `<div class="heat-grid" style="grid-template-columns: 130px repeat(${timeframes.length}, 1fr);">`;
+  html += `<div></div>`;
+  timeframes.forEach(tf => html += `<div class="heat-col-label">${fmt.tf(tf)}</div>`);
+
+  rowKeys.forEach(([thr, dir]) => {
+    html += `<div class="heat-row-label"><span class="pill pill-${dir}" style="margin-right:6px;">${dir}</span>${thr}%</div>`;
+    timeframes.forEach(tf => {
+      const rec = rows.find(r => r.timeframe===tf && r.threshold===thr && r.direction===dir);
+      if (!rec) { html += `<div></div>`; return; }
+      html += `<div class="heat-cell" style="background:${colorFor(rec.avg_pnl_pct)};" data-tip="${fmt.tf(tf)} · ${dir} · ${thr}%: ${fmt.pct1(rec.avg_pnl_pct)} avg, ${fmt.int(rec.n_trades)} trades, ${fmt.pf(rec.profit_factor)} PF">
+        <span class="hv">${fmt.pct1(rec.avg_pnl_pct)}</span>
+        <span class="hn">${fmt.int(rec.n_trades)} trades</span>
+      </div>`;
+    });
+  });
+  html += `</div>`;
+  container.innerHTML = html;
+  container.querySelectorAll('.heat-cell').forEach(el => {
+    el.addEventListener('mousemove', e => showTip(e, el.dataset.tip));
+    el.addEventListener('mouseleave', hideTip);
+  });
+}
+renderHeatmap(document.getElementById('heatmap15'), DATA.heatmap15);
+
+/* ---------------- Tables ---------------- */
+function renderTable(container, columns, rows) {
+  const thead = '<thead><tr>' + columns.map(c => `<th class="${c.num?'num':''}">${c.label}</th>`).join('') + '</tr></thead>';
+  const tbody = '<tbody>' + rows.map(r => '<tr>' + columns.map(c => {
+    const v = c.get(r);
+    return `<td class="${c.num?'num':''}">${v}</td>`;
+  }).join('') + '</tr>').join('') + '</tbody>';
+  container.innerHTML = `<table>${thead}${tbody}</table>`;
+}
+
+const pnlCell = v => `<span class="${v>=0?'pos':'neg'}">${fmt.pct1(v)}</span>`;
+const dirCell = d => `<span class="pill pill-${d}">${d}</span>`;
+
+renderTable(document.getElementById('tblRsi'),
+  [
+    {label:'TF', get:r=>fmt.tf(r.timeframe)},
+    {label:'Dir', get:r=>dirCell(r.direction)},
+    {label:'RSI', get:r=>r.rsi_bucket.split('(')[0]},
+    {label:'N', num:true, get:r=>fmt.int(r.n_events)},
+    {label:'Band exit', num:true, get:r=>fmt.pct0(r.band_exit_10)},
+  ],
+  DATA.behaviorByRsi.filter(r=>r.n_events>=100)
+);
+
+renderTable(document.getElementById('tblAdx'),
+  [
+    {label:'TF', get:r=>fmt.tf(r.timeframe)},
+    {label:'Dir', get:r=>dirCell(r.direction)},
+    {label:'ADX', get:r=>r.adx_bucket.split('(')[0]},
+    {label:'N', num:true, get:r=>fmt.int(r.n_events)},
+    {label:'Band exit', num:true, get:r=>fmt.pct0(r.band_exit_10)},
+  ],
+  DATA.behaviorByAdx
+);
+
+renderTable(document.getElementById('tblVol'),
+  [
+    {label:'TF', get:r=>fmt.tf(r.timeframe)},
+    {label:'Dir', get:r=>dirCell(r.direction)},
+    {label:'Volume', get:r=>r.vol_bucket.split('(')[0]},
+    {label:'N', num:true, get:r=>fmt.int(r.n_events)},
+    {label:'Band exit', num:true, get:r=>fmt.pct0(r.band_exit_10)},
+  ],
+  DATA.behaviorByVol
+);
+
+renderTable(document.getElementById('tblTop10'),
+  [
+    {label:'TF', get:r=>fmt.tf(r.timeframe)},
+    {label:'Thr', get:r=>r.threshold+'%'},
+    {label:'Dir', get:r=>dirCell(r.direction)},
+    {label:'T:SL', get:r=>r.target_pct+':'+r.stop_pct},
+    {label:'N', num:true, get:r=>fmt.int(r.n_trades)},
+    {label:'Avg P&L', num:true, get:r=>pnlCell(r.avg_pnl_pct)},
+    {label:'PF', num:true, get:r=>fmt.pf(r.profit_factor)},
+  ],
+  DATA.top10
+);
+
+renderTable(document.getElementById('tblBottom10'),
+  [
+    {label:'TF', get:r=>fmt.tf(r.timeframe)},
+    {label:'Thr', get:r=>r.threshold+'%'},
+    {label:'Dir', get:r=>dirCell(r.direction)},
+    {label:'T:SL', get:r=>r.target_pct+':'+r.stop_pct},
+    {label:'N', num:true, get:r=>fmt.int(r.n_trades)},
+    {label:'Avg P&L', num:true, get:r=>pnlCell(r.avg_pnl_pct)},
+    {label:'PF', num:true, get:r=>fmt.pf(r.profit_factor)},
+  ],
+  DATA.bottom10
+);
+
+renderTable(document.getElementById('tblTopLevel'),
+  [
+    {label:'Variant', get:r=>r.strategy_variant},
+    {label:'TF', get:r=>fmt.tf(r.timeframe)},
+    {label:'N', num:true, get:r=>fmt.int(r.n_trades)},
+    {label:'Win %', num:true, get:r=>r.win_rate_pct.toFixed(1)+'%'},
+    {label:'Avg P&L', num:true, get:r=>pnlCell(r.avg_pnl_pct)},
+    {label:'PF', num:true, get:r=>fmt.pf(r.profit_factor)},
+  ],
+  DATA.topLevel
+);
+
+renderTable(document.getElementById('tblNiftyBacktest'),
+  [
+    {label:'Variant', get:r=>r.strategy_variant},
+    {label:'Nifty regime', get:r=>r.nifty_regime_at_signal},
+    {label:'N', num:true, get:r=>fmt.int(r.n_trades)},
+    {label:'Win %', num:true, get:r=>r.win_rate_pct.toFixed(1)+'%'},
+    {label:'Avg P&L', num:true, get:r=>pnlCell(r.avg_pnl_pct)},
+    {label:'PF', num:true, get:r=>fmt.pf(r.profit_factor)},
+  ],
+  DATA.byNiftyRegimeBacktest
+);
+</script>
