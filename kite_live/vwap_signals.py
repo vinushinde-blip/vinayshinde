@@ -60,10 +60,7 @@ def bootstrap_symbol_stats(kite, token, days=config.HISTORY_DAYS, now=None):
     from_date = to_date - timedelta(days=int(days * 1.8) + 5)  # buffer for weekends/holidays
 
     candles = kite.historical_data(token, from_date, to_date, config.CANDLE_INTERVAL)
-    by_day = defaultdict(list)
-    for c in candles:
-        day = c["date"].date()
-        by_day[day].append(c)
+    by_day, _today_candles = _split_history(candles, to_date.date())
 
     recent_days = sorted(by_day.keys())[-days:]
 
