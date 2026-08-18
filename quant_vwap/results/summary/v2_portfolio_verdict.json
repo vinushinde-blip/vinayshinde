@@ -1,0 +1,66 @@
+{
+  "zscore_only": {
+    "n_signals": 385427,
+    "n_executed": 24554,
+    "cost_0pct": {
+      "cagr": 43.58,
+      "maxDD": -8.87,
+      "PF": 1.102,
+      "sharpe": 2.283
+    },
+    "cost_5pct": {
+      "cagr": -22.51,
+      "maxDD": -43.96,
+      "PF": 0.936,
+      "sharpe": -1.475
+    }
+  },
+  "slope_flat": {
+    "n_signals": 258433,
+    "n_executed": 19223,
+    "cost_0pct": {
+      "cagr": 34.32,
+      "maxDD": -9.89,
+      "PF": 1.113,
+      "sharpe": 2.11
+    },
+    "cost_5pct": {
+      "cagr": -16.57,
+      "maxDD": -36.2,
+      "PF": 0.938,
+      "sharpe": -1.161
+    },
+    "cost_8pct": {
+      "cagr": -37.0,
+      "maxDD": -61.14,
+      "PF": 0.852,
+      "sharpe": -3.029
+    }
+  },
+  "slope_sector": {
+    "n_signals": 134701,
+    "n_executed": 16954,
+    "cost_0pct": {
+      "cagr": 35.97,
+      "maxDD": -10.27,
+      "PF": 1.138,
+      "sharpe": 2.349
+    },
+    "cost_5pct": {
+      "cagr": -10.43,
+      "maxDD": -25.0,
+      "PF": 0.956,
+      "sharpe": -0.746
+    },
+    "cost_8pct": {
+      "cagr": -30.31,
+      "maxDD": -51.98,
+      "PF": 0.864,
+      "sharpe": -2.565
+    },
+    "avg_bars_held": 85.2,
+    "eod_exit_rate_pct": 43.78,
+    "tp_hit_rate_pct": 9.53,
+    "sl_rate_pct": 46.68
+  }
+}
