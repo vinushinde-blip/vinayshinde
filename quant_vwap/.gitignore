@@ -3,7 +3,7 @@ results/*.parquet
 results/*checkpoint*.json
 results/pipeline_log.txt
 results/pipeline_stdout.log
-results/*_log.txt
+results/*log*.txt
 data_cache/fetch_log.txt
 data_cache/fetch_stdout.log
 __pycache__/
