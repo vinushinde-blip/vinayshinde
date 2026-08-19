@@ -218,9 +218,11 @@ def fetch_live_quotes(kite, instruments_map):
             if not q or not q.get("average_price"):
                 continue
             ts = q.get("last_trade_time") or q.get("timestamp")
+            prev_close = (q.get("ohlc") or {}).get("close")
             out[sym] = {
                 "last_price": q["last_price"],
                 "average_price": q["average_price"],  # Kite's own day VWAP
+                "prev_close": prev_close,
                 "timestamp": ts.strftime("%H:%M:%S") if ts else None,
             }
     return out
@@ -241,11 +243,14 @@ def build_signals(kite, instruments_map, stats):
         zone_code, zone_label = classify_zone(abs_dist, s["level1"], s["level2"])
         crossing = abs_dist > s["ten_day_high"]
         direction = "Upside" if dist_pct >= 0 else "Downside"
+        prev_close = q.get("prev_close")
+        change_pct = (ltp - prev_close) / prev_close * 100.0 if prev_close else None
         rows.append({
             "symbol": symbol,
             "ltp": ltp,
             "vwap": vwap,
             "dist_pct": dist_pct,
+            "change_pct": change_pct,
             "zone_code": zone_code,
             "zone_label": zone_label,
             "ten_day_high": s["ten_day_high"],
