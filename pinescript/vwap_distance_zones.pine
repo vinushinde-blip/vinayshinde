@@ -1,0 +1,86 @@
+//@version=5
+indicator("VWAP Distance Zones", overlay = true)
+
+// ───────────────────────────── Inputs ─────────────────────────────
+src      = input.source(close, "Source")
+anchor   = input.string("Session", "VWAP Anchor", options = ["Session", "Week", "Month"])
+lookback = input.int(200, "Historical lookback (bars) used to build the zones", minval = 20)
+mult1    = input.float(1.0, "Average zone  ≤  x × historical std-dev")
+mult2    = input.float(2.0, "Medium zone   ≤  x × historical std-dev  (beyond = Extreme)")
+
+// ───────────────────────────── VWAP (session/week/month anchored) ─────────────────────────────
+// Free-plan compatible: single symbol only, no request.security() calls.
+isNewPeriod = anchor == "Session" ? timeframe.change("D") : anchor == "Week" ? timeframe.change("W") : timeframe.change("M")
+
+var float cumPV  = na
+var float cumVol = na
+cumPV  := isNewPeriod ? src * volume : cumPV[1] + src * volume
+cumVol := isNewPeriod ? volume       : cumVol[1] + volume
+vwapValue = cumPV / cumVol
+
+// ───────────────────────────── Current VWAP distance % ─────────────────────────────
+distPct = (src - vwapValue) / vwapValue * 100
+absDist = math.abs(distPct)
+
+// ───────────────────────────── Historical distribution → 3 zones ─────────────────────────────
+// Std-dev of the distance% over the lookback window is the "historical" measure:
+// ~68% of past readings fall inside 1 std-dev, ~95% inside 2 std-dev, so these two
+// levels split history into Average / Medium / Extreme buckets.
+stdevDist = ta.stdev(distPct, lookback)
+level1    = stdevDist * mult1   // Average <-> Medium boundary
+level2    = stdevDist * mult2   // Medium <-> Extreme boundary
+
+zoneCode  = absDist <= level1 ? 1 : absDist <= level2 ? 2 : 3
+zoneColor = zoneCode == 1 ? color.green : zoneCode == 2 ? color.orange : color.red
+zoneLabel = zoneCode == 1 ? "Average" : zoneCode == 2 ? "Medium" : "Extreme"
+
+// ───────────────────────────── Plot: single line, colored by zone ─────────────────────────────
+// One continuous plot; its color expression switches the moment zoneCode changes,
+// so the line itself changes color live as VWAP moves between zones.
+plot(vwapValue, title = "VWAP", color = zoneColor, linewidth = 2)
+
+// Exact distance % value, visible in the Data Window as you hover any bar
+// (kept off the chart itself so it doesn't add a visible line).
+plot(distPct, title = "VWAP Distance % (Data Window)", display = display.data_window)
+
+// ───────────────────────────── Rolling N-day highest |distance%| ─────────────────────────────
+// Tracks each completed trading day's max |distance%| in an array, so "highest in the
+// last N days" can be read back without request.security().
+var array<float> dayHighs  = array.new_float(0)
+var float        curDayMax = na
+
+isNewDay = timeframe.change("D")
+if isNewDay
+    if not na(curDayMax)
+        array.unshift(dayHighs, curDayMax)
+        if array.size(dayHighs) > 30
+            array.pop(dayHighs)
+    curDayMax := absDist
+else
+    curDayMax := na(curDayMax) ? absDist : math.max(curDayMax, absDist)
+
+f_highestOverDays(n) =>
+    m = nz(curDayMax)
+    limit = math.min(n - 2, array.size(dayHighs) - 1)
+    if limit >= 0
+        for i = 0 to limit
+            m := math.max(m, array.get(dayHighs, i))
+    m
+
+high5D  = f_highestOverDays(5)
+high10D = f_highestOverDays(10)
+high15D = f_highestOverDays(15)
+
+// ───────────────────────────── Table (top-right, current bar) ─────────────────────────────
+var table info = table.new(position.top_right, 2, 5, border_width = 1)
+if barstate.islast
+    table.cell(info, 0, 0, "VWAP Dist %", text_color = color.white, bgcolor = color.new(color.black, 0))
+    table.cell(info, 1, 0, (distPct >= 0 ? "+" : "") + str.tostring(distPct, "#.##") + "%", text_color = color.white, bgcolor = color.new(color.black, 0))
+    table.cell(info, 0, 1, "Zone", text_color = color.white, bgcolor = zoneColor)
+    table.cell(info, 1, 1, zoneLabel, text_color = color.white, bgcolor = zoneColor)
+    table.cell(info, 0, 2, "5D High", text_color = color.white, bgcolor = color.new(color.black, 0))
+    table.cell(info, 1, 2, str.tostring(high5D, "#.##") + "%", text_color = color.white, bgcolor = color.new(color.black, 0))
+    table.cell(info, 0, 3, "10D High", text_color = color.white, bgcolor = color.new(color.black, 0))
+    table.cell(info, 1, 3, str.tostring(high10D, "#.##") + "%", text_color = color.white, bgcolor = color.new(color.black, 0))
+    table.cell(info, 0, 4, "15D High", text_color = color.white, bgcolor = color.new(color.black, 0))
+    table.cell(info, 1, 4, str.tostring(high15D, "#.##") + "%", text_color = color.white, bgcolor = color.new(color.black, 0))
