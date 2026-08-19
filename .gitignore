@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+.env
+.kite_session.json
+data/ticks/
