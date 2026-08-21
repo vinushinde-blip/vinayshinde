@@ -123,6 +123,7 @@ class InstrumentState:
     token: int
     bars: deque = field(default_factory=lambda: deque(maxlen=WINDOW + 1))
     _current: MinuteBar = None
+    _discarded_partial_first_bar: bool = False
     last_alert_minute: datetime = None
     last_trigger_minute: datetime = None
 
@@ -132,7 +133,14 @@ class InstrumentState:
 
         if self._current is None or self._current.minute != now_minute:
             if self._current is not None:
-                self.bars.append(self._current)
+                # The very first bar built after process start can span less
+                # than 60s (we start mid-minute), so its avg_imbalance is
+                # noisy from too few ticks - drop it rather than let it seed
+                # a spurious flip/contraction read on the first evaluation.
+                if self._discarded_partial_first_bar:
+                    self.bars.append(self._current)
+                else:
+                    self._discarded_partial_first_bar = True
             self._current = MinuteBar(now_minute, ltp, ltp, ltp, ltp)
 
         bar = self._current
