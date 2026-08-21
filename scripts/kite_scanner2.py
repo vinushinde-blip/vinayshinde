@@ -32,21 +32,34 @@ Setup
 
   export KITE_API_KEY=...
   export KITE_ACCESS_TOKEN=...      # from the daily login flow
-  export KITE_WATCHLIST=RELIANCE,TCS,INFY,HDFCBANK   # NSE tradingsymbols
+  export KITE_WATCHLIST=NSE500      # default; or a comma list e.g. RELIANCE,TCS,INFY
 
 Run
 ---
   python scripts/kite_scanner2.py
 
+Then open http://localhost:8765 (or $KITE_SCANNER_PORT) — the page polls
+/api/alerts and redraws itself every 30 seconds with whatever WATCH /
+BUY TRIGGER alerts have fired so far. This has to be served locally by
+this process (rather than as a hosted static page) because it needs a
+live, authenticated Kite tick stream behind it.
+
 Notes
 -----
 - Requires tick subscription in FULL mode (KiteTicker.MODE_FULL) since
   market depth is only present in full-mode ticks.
+- NSE500 constituents are fetched live from NSE's archive CSV, falling
+  back to data/nse500_constituents.csv (a point-in-time snapshot) if that
+  fetch fails. Index membership drifts over time, so refresh that file
+  periodically if you rely on the fallback.
 - All thresholds below are starting points, not calibrated constants —
-  tune CONTRACTION_LOOKBACK / IMBALANCE_THRESHOLD / WINDOW to taste once
-  you see how it behaves against real tick flow.
+  tune IMBALANCE_THRESHOLD / IMBALANCE_RISE_MARGIN / CONTRACTION_RATIO /
+  WINDOW to taste once you see how it behaves against real tick flow.
 """
 
+import csv
+import io
+import json
 import logging
 import os
 import sys
@@ -55,7 +68,9 @@ import time
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+import requests
 from kiteconnect import KiteConnect, KiteTicker
 
 logging.basicConfig(
@@ -71,6 +86,12 @@ WINDOW = 5              # number of closed 1-min candles evaluated per scan
 IMBALANCE_THRESHOLD = -0.15   # imbalance must be at least this negative to count as "sell pressure"
 IMBALANCE_RISE_MARGIN = -0.02  # each successive candle's imbalance must be <= previous - margin
 CONTRACTION_RATIO = 0.85       # latest candle range must be <= this * avg range of prior candles in window
+
+NSE500_URL = "https://archives.nseindia.com/content/indices/ind_nifty500list.csv"
+NSE500_FALLBACK_FILE = os.path.join(os.path.dirname(__file__), "..", "data", "nse500_constituents.csv")
+
+DASHBOARD_PORT = int(os.environ.get("KITE_SCANNER_PORT", "8765"))
+DASHBOARD_REFRESH_SECONDS = 30
 
 # ---------------------------------------------------------------------
 
@@ -171,7 +192,41 @@ def _flips_positive(bars: list) -> bool:
     return prev.avg_imbalance <= IMBALANCE_THRESHOLD and curr.avg_imbalance > 0 and curr.close >= max(b.high for b in bars)
 
 
-def evaluate(state: InstrumentState) -> None:
+class AlertStore:
+    """Thread-safe recent-alerts buffer the dashboard HTTP handler reads from."""
+
+    def __init__(self, max_items: int = 200):
+        self._lock = threading.Lock()
+        self.triggers = deque(maxlen=max_items)
+        self.watches = deque(maxlen=max_items)
+        self.started_at = datetime.now()
+        self.tracked_count = 0
+        self.last_tick_at = None
+
+    def add_trigger(self, entry: dict) -> None:
+        with self._lock:
+            self.triggers.appendleft(entry)
+
+    def add_watch(self, entry: dict) -> None:
+        with self._lock:
+            self.watches.appendleft(entry)
+
+    def note_tick(self) -> None:
+        self.last_tick_at = datetime.now()
+
+    def snapshot(self) -> dict:
+        with self._lock:
+            return {
+                "generated_at": datetime.now().isoformat(timespec="seconds"),
+                "started_at": self.started_at.isoformat(timespec="seconds"),
+                "tracked_count": self.tracked_count,
+                "last_tick_at": self.last_tick_at.isoformat(timespec="seconds") if self.last_tick_at else None,
+                "triggers": list(self.triggers)[:50],
+                "watches": list(self.watches)[:50],
+            }
+
+
+def evaluate(state: InstrumentState, store: AlertStore) -> None:
     bars = state.closed_bars()
     if len(bars) < WINDOW:
         return
@@ -181,10 +236,17 @@ def evaluate(state: InstrumentState) -> None:
 
     if _flips_positive(window) and state.last_trigger_minute != latest_minute:
         state.last_trigger_minute = latest_minute
-        log.info(
-            "\033[92m[BUY TRIGGER] %-12s imbalance flipped positive at close=%.2f (window %s -> %s)\033[0m",
-            state.symbol, window[-1].close, window[0].minute.strftime("%H:%M"), latest_minute.strftime("%H:%M"),
+        msg = (
+            f"imbalance flipped positive at close={window[-1].close:.2f} "
+            f"(window {window[0].minute.strftime('%H:%M')} -> {latest_minute.strftime('%H:%M')})"
         )
+        log.info("\033[92m[BUY TRIGGER] %-12s %s\033[0m", state.symbol, msg)
+        store.add_trigger({
+            "symbol": state.symbol,
+            "time": latest_minute.strftime("%H:%M"),
+            "close": round(window[-1].close, 2),
+            "message": msg,
+        })
         return
 
     if (
@@ -194,13 +256,137 @@ def evaluate(state: InstrumentState) -> None:
         and state.last_alert_minute != latest_minute
     ):
         state.last_alert_minute = latest_minute
-        log.info(
-            "[WATCH] %-12s range contracting, imbalance %.2f -> %.2f (selling), price holding (closes %s)",
-            state.symbol,
-            window[0].avg_imbalance,
-            window[-1].avg_imbalance,
-            [round(b.close, 2) for b in window],
+        msg = (
+            f"range contracting, imbalance {window[0].avg_imbalance:.2f} -> {window[-1].avg_imbalance:.2f} "
+            f"(selling), price holding"
         )
+        log.info(
+            "[WATCH] %-12s %s (closes %s)",
+            state.symbol, msg, [round(b.close, 2) for b in window],
+        )
+        store.add_watch({
+            "symbol": state.symbol,
+            "time": latest_minute.strftime("%H:%M"),
+            "closes": [round(b.close, 2) for b in window],
+            "imbalance_from": round(window[0].avg_imbalance, 2),
+            "imbalance_to": round(window[-1].avg_imbalance, 2),
+            "message": msg,
+        })
+
+
+def fetch_nse500_symbols() -> list:
+    """NSE-listed tradingsymbols for the current Nifty 500 constituents."""
+    try:
+        resp = requests.get(NSE500_URL, headers={"User-Agent": "Mozilla/5.0"}, timeout=20)
+        resp.raise_for_status()
+        reader = csv.DictReader(io.StringIO(resp.text))
+        symbols = [row["Symbol"].strip() for row in reader if row.get("Symbol")]
+        if symbols:
+            log.info("Fetched %d NSE500 constituents live from NSE archives.", len(symbols))
+            return symbols
+    except Exception as e:
+        log.warning("Live NSE500 fetch failed (%s); falling back to bundled snapshot.", e)
+
+    with open(NSE500_FALLBACK_FILE, newline="") as f:
+        reader = csv.DictReader(f)
+        symbols = [row["Symbol"].strip() for row in reader if row.get("Symbol")]
+    log.info("Loaded %d NSE500 constituents from bundled snapshot.", len(symbols))
+    return symbols
+
+
+DASHBOARD_HTML = """<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Scanner2 — NSE500 Contraction / Absorption</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; background: #0b0f14; color: #e6edf3; margin: 0; padding: 24px; }
+  h1 { font-size: 18px; font-weight: 600; margin: 0 0 4px; }
+  .meta { color: #8b949e; font-size: 13px; margin-bottom: 20px; }
+  .section { margin-bottom: 28px; }
+  .section h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .04em; color: #8b949e; margin: 0 0 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid #21262d; }
+  th { color: #8b949e; font-weight: 500; }
+  tr.trigger td { color: #3fb950; }
+  tr.watch td { color: #e6edf3; }
+  .symbol { font-weight: 600; }
+  .empty { color: #6e7681; font-style: italic; padding: 8px 10px; }
+</style>
+</head>
+<body>
+<h1>Scanner2 — NSE500 Contraction / Sell-Absorption</h1>
+<div class="meta" id="meta">loading…</div>
+
+<div class="section">
+  <h2>Buy Triggers (imbalance flipped positive)</h2>
+  <table id="triggers"><thead><tr><th>Time</th><th>Symbol</th><th>Close</th><th>Detail</th></tr></thead>
+  <tbody></tbody></table>
+</div>
+
+<div class="section">
+  <h2>Watch (contracting + rising sell imbalance + price holding)</h2>
+  <table id="watches"><thead><tr><th>Time</th><th>Symbol</th><th>Closes</th><th>Imbalance</th></tr></thead>
+  <tbody></tbody></table>
+</div>
+
+<script>
+async function refresh() {
+  try {
+    const res = await fetch('/api/alerts', { cache: 'no-store' });
+    const data = await res.json();
+
+    document.getElementById('meta').textContent =
+      `Tracking ${data.tracked_count} symbols · started ${data.started_at.replace('T', ' ')} · ` +
+      `last tick ${data.last_tick_at ? data.last_tick_at.replace('T', ' ') : 'none yet'} · ` +
+      `updated ${data.generated_at.replace('T', ' ')}`;
+
+    const tBody = document.querySelector('#triggers tbody');
+    tBody.innerHTML = data.triggers.length ? data.triggers.map(t =>
+      `<tr class="trigger"><td>${t.time}</td><td class="symbol">${t.symbol}</td><td>${t.close}</td><td>${t.message}</td></tr>`
+    ).join('') : '<tr><td class="empty" colspan="4">No triggers yet</td></tr>';
+
+    const wBody = document.querySelector('#watches tbody');
+    wBody.innerHTML = data.watches.length ? data.watches.map(w =>
+      `<tr class="watch"><td>${w.time}</td><td class="symbol">${w.symbol}</td><td>${w.closes.join(' → ')}</td><td>${w.imbalance_from} → ${w.imbalance_to}</td></tr>`
+    ).join('') : '<tr><td class="empty" colspan="4">No watch alerts yet</td></tr>';
+  } catch (e) {
+    document.getElementById('meta').textContent = 'Error loading alerts: ' + e;
+  }
+}
+refresh();
+setInterval(refresh, __REFRESH_MS__);
+</script>
+</body>
+</html>
+""".replace("__REFRESH_MS__", str(DASHBOARD_REFRESH_SECONDS * 1000))
+
+
+def make_dashboard_handler(store: AlertStore):
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, fmt, *args):
+            pass  # quiet; alerts are already logged separately
+
+        def do_GET(self):
+            if self.path == "/" or self.path == "/index.html":
+                body = DASHBOARD_HTML.encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            elif self.path == "/api/alerts":
+                body = json.dumps(store.snapshot()).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            else:
+                self.send_response(404)
+                self.end_headers()
+
+    return Handler
 
 
 class Scanner2:
@@ -209,7 +395,9 @@ class Scanner2:
         self.kite.set_access_token(access_token)
         self.ticker = KiteTicker(api_key, access_token)
         self.states: dict[int, InstrumentState] = {}
+        self.store = AlertStore()
         self._resolve_tokens(watchlist)
+        self.store.tracked_count = len(self.states)
 
         self.ticker.on_ticks = self._on_ticks
         self.ticker.on_connect = self._on_connect
@@ -229,14 +417,18 @@ class Scanner2:
 
     def _on_connect(self, ws, response):
         tokens = list(self.states.keys())
-        ws.subscribe(tokens)
-        ws.set_mode(ws.MODE_FULL, tokens)
+        # Kite allows up to 3000 instruments per connection; well within that here.
+        for i in range(0, len(tokens), 500):
+            batch = tokens[i:i + 500]
+            ws.subscribe(batch)
+            ws.set_mode(ws.MODE_FULL, batch)
         log.info("Subscribed to %d instruments in FULL mode.", len(tokens))
 
     def _on_close(self, ws, code, reason):
         log.warning("Ticker connection closed: %s %s", code, reason)
 
     def _on_ticks(self, ws, ticks):
+        self.store.note_tick()
         for tick in ticks:
             state = self.states.get(tick["instrument_token"])
             if state is None:
@@ -247,29 +439,39 @@ class Scanner2:
         while True:
             time.sleep(1)
             for state in self.states.values():
-                evaluate(state)
+                evaluate(state, self.store)
+
+    def _serve_dashboard(self):
+        server = ThreadingHTTPServer(("0.0.0.0", DASHBOARD_PORT), make_dashboard_handler(self.store))
+        log.info("Dashboard live at http://localhost:%d (refreshes every %ds)", DASHBOARD_PORT, DASHBOARD_REFRESH_SECONDS)
+        server.serve_forever()
 
     def run(self):
         threading.Thread(target=self._scan_loop, daemon=True).start()
+        threading.Thread(target=self._serve_dashboard, daemon=True).start()
         self.ticker.connect(threaded=False)
 
 
 def main():
     api_key = os.environ.get("KITE_API_KEY")
     access_token = os.environ.get("KITE_ACCESS_TOKEN")
-    watchlist_raw = os.environ.get("KITE_WATCHLIST", "")
+    watchlist_raw = os.environ.get("KITE_WATCHLIST", "NSE500").strip()
 
     if not api_key or not access_token:
         log.error("Set KITE_API_KEY and KITE_ACCESS_TOKEN environment variables.")
         sys.exit(1)
 
-    watchlist = [s.strip().upper() for s in watchlist_raw.split(",") if s.strip()]
+    if watchlist_raw.upper() == "NSE500":
+        watchlist = fetch_nse500_symbols()
+    else:
+        watchlist = [s.strip().upper() for s in watchlist_raw.split(",") if s.strip()]
+
     if not watchlist:
-        log.error("Set KITE_WATCHLIST as a comma-separated list of NSE tradingsymbols.")
+        log.error("No symbols resolved; set KITE_WATCHLIST to NSE500 or a comma-separated symbol list.")
         sys.exit(1)
 
     scanner = Scanner2(api_key, access_token, watchlist)
-    log.info("Scanner2 starting for: %s", ", ".join(watchlist))
+    log.info("Scanner2 starting for %d symbols.", len(watchlist))
     scanner.run()
 
 
