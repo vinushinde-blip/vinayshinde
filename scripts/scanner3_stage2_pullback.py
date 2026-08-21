@@ -36,6 +36,9 @@ approximated computationally - concrete rules used, all tunable below):
   - "Mother candle" = the widest-range (high-low) candle in the last 10
     days of the base - entry is a stop order above its high.
   - Stoploss = the previous day's low.
+  - Pivot, R1/R2, S1/S2 = classic floor-trader pivot points computed from
+    the previous day's high/low/close (pivot = avg(H,L,C); R1/S1 =
+    2*pivot -/+ low/high; R2/S2 = pivot +/- (high-low)).
 
 Run
 ---
@@ -168,6 +171,18 @@ def is_breakout(df: pd.DataFrame, i: int, resistance: float) -> bool:
     if pd.isna(row["vol50"]) or row["vol50"] == 0:
         return False
     return row["close"] > resistance and row["volume"] > row["vol50"] * BREAKOUT_VOLUME_EXPANSION
+
+
+def pivot_levels(df: pd.DataFrame, i: int):
+    """Classic floor-trader pivots from the previous day's H/L/C."""
+    if i == 0:
+        return None
+    prev = df.iloc[i - 1]
+    high, low, close = prev["high"], prev["low"], prev["close"]
+    pivot = (high + low + close) / 3
+    r1, s1 = 2 * pivot - low, 2 * pivot - high
+    r2, s2 = pivot + (high - low), pivot - (high - low)
+    return {"pivot": round(pivot, 2), "r1": round(r1, 2), "r2": round(r2, 2), "s1": round(s1, 2), "s2": round(s2, 2)}
 
 
 # ---- pattern detectors: each returns a dict of pattern-specific fields, or None ----
@@ -346,6 +361,7 @@ def evaluate_symbol(symbol: str, df: pd.DataFrame):
 
     entry_trigger, stoploss = entry_and_stop(df, earliest_base_start, i)
     resistance = df.iloc[earliest_base_start:i]["high"].max()
+    pivots = pivot_levels(df, i) or {}
 
     out = {
         "symbol": symbol,
@@ -356,6 +372,11 @@ def evaluate_symbol(symbol: str, df: pd.DataFrame):
         "entry_trigger": round(entry_trigger, 2),
         "stoploss": round(stoploss, 2),
         "distance_to_trigger_pct": round((entry_trigger - row["close"]) / row["close"] * 100, 1),
+        "pivot": pivots.get("pivot"),
+        "r1": pivots.get("r1"),
+        "r2": pivots.get("r2"),
+        "s1": pivots.get("s1"),
+        "s2": pivots.get("s2"),
     }
     for name, result in matched.items():
         for k, v in result.items():
