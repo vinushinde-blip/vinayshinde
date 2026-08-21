@@ -39,6 +39,11 @@ approximated computationally - concrete rules used, all tunable below):
   - Pivot, R1/R2, S1/S2 = classic floor-trader pivot points computed from
     the previous day's high/low/close (pivot = avg(H,L,C); R1/S1 =
     2*pivot -/+ low/high; R2/S2 = pivot +/- (high-low)).
+  - already_triggered = close has already crossed above entry_trigger
+    (price alone, no volume check) - a heads-up that the setup may be
+    past the ideal entry, not a buy signal itself. breakout_now is the
+    stricter version: crossed AND today's volume expanded 1.5x+ over the
+    50-day average, the actual confirmation this framework calls for.
 
 Run
 ---
@@ -368,6 +373,7 @@ def evaluate_symbol(symbol: str, df: pd.DataFrame):
         "pattern_types": ", ".join(matched.keys()),
         "close": round(row["close"], 2),
         "volume_dryup": volume_dryup(row),
+        "already_triggered": row["close"] > entry_trigger,
         "breakout_now": is_breakout(df, i, resistance),
         "entry_trigger": round(entry_trigger, 2),
         "stoploss": round(stoploss, 2),
